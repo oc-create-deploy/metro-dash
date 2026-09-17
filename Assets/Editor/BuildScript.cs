@@ -71,6 +71,7 @@ public static class BuildScript
     private static void EnsureScene()
     {
         const string scenePath = "Assets/Scenes/Main.unity";
+        Directory.CreateDirectory(Path.GetDirectoryName(scenePath));
         var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
         var root = new GameObject("Metro Dash");
         root.AddComponent<MetroDashGame>();
