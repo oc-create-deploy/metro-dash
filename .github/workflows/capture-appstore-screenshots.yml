@@ -83,11 +83,10 @@ jobs:
           xcrun simctl spawn "$UDID" log stream --level debug --style compact --predicate 'process == "MetroDash" OR process == "UnityFramework"' > screenshots/live-runtime.log 2>&1 &
           LOGGER_PID=$!
           xcrun simctl launch --stdout="$PWD/screenshots/unity-stdout.log" --stderr="$PWD/screenshots/unity-stderr.log" "$UDID" "$BUILT_BUNDLE_ID" --playabilityQA
-          xcrun simctl io "$UDID" recordVideo --codec=h264 --force screenshots/gameplay.mov &
-          RECORDER_PID=$!
-          trap 'kill -INT "$RECORDER_PID" 2>/dev/null || true; kill "$LOGGER_PID" 2>/dev/null || true; wait "$RECORDER_PID" || true; cp -R "$HOME/.maestro/tests" screenshots/maestro-tests 2>/dev/null || true; xcrun simctl io "$UDID" screenshot screenshots/final.png || true' EXIT
+          # Screenshots plus read-only gameplay snapshots avoid concurrent video encoder load.
+          trap 'kill "$LOGGER_PID" 2>/dev/null || true; cp -R "$HOME/.maestro/tests" screenshots/maestro-tests 2>/dev/null || true; xcrun simctl io "$UDID" screenshot screenshots/final.png || true' EXIT
           python3 .github/scripts/metro-native-qa.py
-          xcrun simctl spawn "$UDID" log show --last 15m --style compact --predicate 'process == "Cubic Matchscape"' > screenshots/runtime.log || true
+          xcrun simctl spawn "$UDID" log show --last 15m --style compact --predicate 'process == "MetroDash"' > screenshots/runtime.log || true
 
       - name: Upload screenshot artifact
         if: always()
