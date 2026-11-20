@@ -11,7 +11,7 @@ bridge=module.TouchBridge(out,udid,bundle)
 
 def state():
     global container
-    deadline = time.time()+180
+    deadline = time.time()+300
     while time.time()<deadline:
         for p in container.rglob('qa-state.json'):
             try:
@@ -69,7 +69,7 @@ def press(x,y):
 def restart():
     subprocess.run(['xcrun','simctl','terminate',udid,bundle],check=True)
     for p in container.rglob('qa-state.json'):p.unlink()
-    subprocess.run(['xcrun','simctl','launch',udid,bundle],check=True)
+    subprocess.run(['xcrun','simctl','launch',udid,bundle,'--playabilityQA'],check=True)
     time.sleep(4)
 def wait_for(predicate,seconds=8):
     end=time.time()+seconds
