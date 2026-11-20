@@ -85,7 +85,14 @@ public sealed class MetroDashGame : MonoBehaviour
         Fill(new Rect(0,0,430,932),new Color(.025f,.055f,.1f));
         Fill(new Rect(48,115,334,730),new Color(.09f,.14f,.2f));
         for(int l=1;l<3;l++) for(int y=120;y<840;y+=100) Fill(new Rect(49+l*110,y+(elapsed*150)%100,2,42),new Color(.2f,.3f,.4f));
-        foreach(RoadObject o in objects) Fill(ObjectRect(o),o.coin ? new Color(1,.82f,.15f) : new Color(.88f,.15f,.25f));
+        // Clip incoming/off-road objects so they cannot obscure title, HUD or controls.
+        GUI.BeginGroup(new Rect(48,115,334,730));
+        foreach(RoadObject o in objects)
+        {
+            Rect visible=ObjectRect(o); visible.x-=48; visible.y-=115;
+            Fill(visible,o.coin ? new Color(1,.82f,.15f) : new Color(.88f,.15f,.25f));
+        }
+        GUI.EndGroup();
         Rect car=PlayerRect(); Fill(car,new Color(.05f,.75f,.9f)); Fill(new Rect(car.x+8,car.y+15,car.width-16,23),new Color(.1f,.2f,.3f));
         GUI.Label(new Rect(0,12,430,54),"METRO DASH",title);
         GUI.Label(new Rect(8,68,200,36),"DISTANCE  "+Score,label); GUI.Label(new Rect(225,68,200,36),"COINS  "+coins,label);
