@@ -4,21 +4,31 @@ out = pathlib.Path('screenshots'); out.mkdir(exist_ok=True)
 udid = os.environ['UDID']; bundle = os.environ['APP_BUNDLE_ID']
 container = pathlib.Path(subprocess.check_output(['xcrun','simctl','get_app_container',udid,bundle,'data'],text=True).strip())
 seq = 0
+snapshot_path = None
 import importlib.util
 spec=importlib.util.spec_from_file_location('touchbridge',pathlib.Path(__file__).with_name('native-touch-bridge.py'))
 module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
 bridge=module.TouchBridge(out,udid,bundle)
 
 def state():
-    global container
-    deadline = time.time()+300
+    global container, snapshot_path
+    began=time.time()
+    deadline = began+300
     while time.time()<deadline:
-        candidates=list(container.rglob('qa-state.json'))
+        # Reuse the discovered recorder path. Recursive container scans on
+        # every field read can stall live control on loaded hosted runners.
+        candidates=[snapshot_path] if snapshot_path is not None and snapshot_path.exists() else list(container.rglob('qa-state.json'))
         for p in candidates:
             try:
                 s=json.loads(p.read_text())
                 assert not s['errors'],s['errors']
-                if s["frame"] >= 30: return s
+                if s["frame"] >= 30:
+                    snapshot_path=p
+                    elapsed=time.time()-began
+                    if elapsed>.1:
+                        with (out/"snapshot-latency.jsonl").open("a") as f:
+                            f.write(json.dumps({"seconds":elapsed,"frame":s["frame"],"time":time.time()})+"\n")
+                    return s
             except (json.JSONDecodeError,FileNotFoundError): pass
         if candidates:
             # Recorder uses non-atomic File.WriteAllText. A partial JSON read
