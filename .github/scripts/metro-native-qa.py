@@ -106,11 +106,18 @@ def survive_until(target_level, seconds=150):
         # Train length is 8m: its front reaches the runner at z=4.3, not at its centre.
         nearby=sorted([i for i in ahead if 0<i['y']<32],key=lambda i:i['y'])
         wanted=next((i for i in nearby if (i['id']==2 and not jumped) or (i['id']==3 and not slid)),None)
-        if wanted and wanted['y']>speed*.7:
+        # Never steer toward a later target through a nearer obstacle in its lane.
+        with (out/'navigation.jsonl').open('a') as trace:
+            trace.write(json.dumps({'score':number('Score'),'lane':lane,'nearby':nearby})+'\n')
+        if wanted and wanted['y']>speed*.7 and not any(
+                i['group']==wanted['group'] and i['y']<wanted['y']-1 for i in nearby):
             move_to(wanted['group']);lane=int(number('lane'))
         danger=next((i for i in nearby if i['group']==lane),None)
         if danger and danger['id'] in (1,4):
-            safe=[l for l in range(3) if not any(i['group']==l and -5<i['y']<34 for i in ahead)]
+            # Escape the current row; a later row 26m away must not
+            # disqualify its otherwise clear escape lane.
+            horizon=max(speed*.9, danger['y']+3)
+            safe=[l for l in range(3) if not any(i['group']==l and -5<i['y']<horizon for i in ahead)]
             if safe:move_to(min(safe,key=lambda l:abs(l-lane)))
         elif danger and danger['id'] in (2,3) and danger['y']<speed*.75 and time.time()>next_action_at:
             (out/('hazard-before-'+str(seq)+'.json')).write_text(json.dumps(s,indent=2))
