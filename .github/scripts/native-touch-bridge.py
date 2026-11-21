@@ -44,11 +44,16 @@ class TouchBridge:
             self.swipe(values[0],values[1]);return
         command={'kind':'tap','point':values[0]}
         event=threading.Event();self.pending.put((command,event))
-        if self.proc is None:self.proc=subprocess.Popen(self.command,stdout=self.log,stderr=subprocess.STDOUT)
-        deadline=time.time()+360
+        starting=self.proc is None
+        if starting:self.proc=subprocess.Popen(self.command,stdout=self.log,stderr=subprocess.STDOUT)
+        # First XCUITest installation/launch exceeded 360s on a loaded hosted
+        # simulator (44885312976); initial tap completed after timeout. Keep
+        # gameplay input separately bounded, without restarting the driver.
+        budget=720 if starting else 60
+        deadline=time.time()+budget
         while not event.wait(1):
             if self.proc.poll() is not None:raise AssertionError('Persistent native driver exited: '+(self.out/'persistent-input.log').read_text()[-3000:])
-            if time.time()>deadline:raise TimeoutError('Native input exceeded 360 seconds; inspect persistent-input.log')
+            if time.time()>deadline:raise TimeoutError(f'Native input exceeded {budget} seconds (startup={starting}); inspect persistent-input.log')
     def native_request(self, base, endpoint, payload):
         req=urllib.request.Request(base+'/'+endpoint,data=json.dumps(payload).encode(),headers={'Content-Type':'application/json'},method='POST')
         with urllib.request.urlopen(req,timeout=60) as response:return response.read()
