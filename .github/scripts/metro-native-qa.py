@@ -222,13 +222,15 @@ def survive_until(target_level, seconds=150):
             press(160 if danger['id']==2 else 270,881,s)
             # One read per activation probe, not independent flag/playing
             # reads whose cumulative I/O exceeded a whole slide in44920584247.
+            action_evidence={}
             def action_observed():
                 nonlocal_values={v['key']:v['value'] for v in state()['values']}
+                action_evidence.update(nonlocal_values)
                 return nonlocal_values['MetroDashGame.'+key]=='True' or nonlocal_values['MetroDashGame.playing']!='True'
             wait_for(action_observed,2)
             with (out/'input-latency.jsonl').open('a') as trace:
-                trace.write(json.dumps({'kind':danger['id'],'beforeZ':danger['y'],'speed':speed,'seconds':time.time()-action_started,'score':number('Score'),'active':flag(key),'playing':playing()})+'\n')
-            if not (playing() and flag(key)):
+                trace.write(json.dumps({'kind':danger['id'],'beforeZ':danger['y'],'speed':speed,'seconds':time.time()-action_started,'score':float(action_evidence['MetroDashGame.Score']),'active':action_evidence['MetroDashGame.'+key]=='True','playing':action_evidence['MetroDashGame.playing']=='True'})+'\n')
+            if not (action_evidence['MetroDashGame.playing']=='True' and action_evidence['MetroDashGame.'+key]=='True'):
                 capture('hazard-input-failed')
                 raise AssertionError(('Required real jump/slide did not activate',key,danger,number('Score'),playing()))
             # Crossing the obstacle alive proves geometry, not just animation.
