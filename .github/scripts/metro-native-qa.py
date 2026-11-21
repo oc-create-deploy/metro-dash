@@ -168,10 +168,14 @@ def survive_until(target_level, seconds=150):
                 continue
             # If a proven hurdle/gate is the only traversable route, perform
             # the real action again rather than crossing an imminent train.
-        if danger and danger['id'] in (2,3) and danger['y']<speed*.95 and time.time()>next_action_at:
+        # Jump airtime is shorter than slide duration. At z10.93/s12.01
+        # the 44895474024 jump landed before the trailing collision edge
+        # (height1.0316 at z-.502), despite successful native activation.
+        action_lead=.82 if danger and danger['id']==2 else .95
+        if danger and danger['id'] in (2,3) and danger['y']<speed*action_lead and time.time()>next_action_at:
             (out/('hazard-before-'+str(seq)+'.json')).write_text(json.dumps(s,indent=2))
             # Snapshot cadence (~0.35s) plus native delivery can skip a
-            # 0.75s threshold into a <0.45s approach. Lead by 0.95s;
+            # 0.75s threshold into a <0.45s approach. Use kind-specific lead;
             # still require actual activation AND observed obstacle clearance.
             action_started=time.time()
             key='IsJumping' if danger['id']==2 else 'IsSliding'
@@ -209,7 +213,7 @@ def survive_until(target_level, seconds=150):
             capture_paused('06-canal');canal_captured=True
         if int(observed['MetroDashGame.Level'])>=target_level and jumped and slid:
             capture_paused('06-district-'+str(target_level));return
-        time.sleep(.1)
+        time.sleep(.02 if danger and danger['y']<speed*1.4 else .1)
     raise AssertionError(('Survival/obstacle/district gate incomplete',number('Score'),jumped,slid,playing()))
 
 try:
