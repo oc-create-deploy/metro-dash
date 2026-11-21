@@ -93,7 +93,7 @@ def wait_for(predicate,seconds=8):
         if predicate():return
         time.sleep(.05)
     assert predicate(),'Observed native transition timed out'
-def start_or_resume():
+def start_or_resume(menu_selection=None):
     press(215,539)
     try:
         wait_for(playing)
@@ -101,12 +101,15 @@ def start_or_resume():
         # A native touch can be missed under simulator load. Retry once ONLY
         # when fresh frames prove the unchanged, live paused menu, never loss.
         before=state(); values={v['key']:v['value'] for v in before['values']}
-        assert values['MetroDashGame.started']=='True' and values['MetroDashGame.gameOver']=='False'
+        assert values['MetroDashGame.gameOver']=='False'
+        assert values['MetroDashGame.started']=='True' or menu_selection is not None
         time.sleep(.2)
         after=state()
         assert after['frame']>before['frame'] and not playing() and not flag('gameOver')
         with (out/'resume-input-retries.jsonl').open('a') as f:
             f.write(json.dumps({'before':before,'after':after})+'\n')
+        if values['MetroDashGame.started']=='False':
+            press(*menu_selection) # Repeat actual district selection after a missed cold-menu touch.
         press(215,539);wait_for(playing)
 
 def playing():return val('MetroDashGame.playing')=='True'
@@ -277,7 +280,7 @@ try:
     press(362,54);wait_for(lambda:not playing())
     restart();assert number('Coins')==coins and number('best')==best and int(number('UnlockedLevel'))==2,'Cold-launch persistence mismatch'
     capture('08-restored')
-    press(331,663);start_or_resume()
+    press(331,663);start_or_resume(menu_selection=(331,663))
     assert number('Score')>=1200 and int(number('Level'))==2,'Unlocked district selection did not start correct route'
     press(362,54);capture('09-night-start')
     start_or_resume()
