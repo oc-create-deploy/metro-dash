@@ -10,7 +10,14 @@ class TouchBridge:
             def do_GET(self):
                 if self.path!='/next':self.send_error(404);return
                 if bridge.previous is not None:bridge.previous.set()
-                command,event=bridge.pending.get(timeout=900)
+                try:
+                    command,event=bridge.pending.get(timeout=5)
+                except queue.Empty:
+                    # Direct XCUITest input bypasses this queue. Keep the
+                    # Maestro script alive without a 900s HTTP long-poll
+                    # (44929021462 JsEvaluationException: timeout). No input
+                    # or gameplay mutation is performed by this heartbeat.
+                    command,event={'kind':'idle'},None
                 bridge.previous=event
                 body=json.dumps(command).encode();self.send_response(200);self.send_header('Content-Type','application/json');self.send_header('Content-Length',str(len(body)));self.end_headers();self.wfile.write(body)
         self.server=http.server.ThreadingHTTPServer(('127.0.0.1',0),Handler)
@@ -21,7 +28,7 @@ class TouchBridge:
 ---
 - runScript: next-input.js
 - repeat:
-    times: 150
+    times: 1000
     while:
       true: ${output.command.kind != 'done'}
     commands:
