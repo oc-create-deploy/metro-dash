@@ -221,9 +221,16 @@ def survive_until(target_level, seconds=150):
             for token in tokens:
                 if not any(i['group']==token['group'] and -5<i['y']<34 for i in ahead):
                     move_to(token['group']);break
+        # Pause/resume delivery advances several metres. Defer the canal
+        # observation until the CURRENT lane is clear beyond that latency
+        # budget, rather than pausing in a mandatory two-lane escape (626m
+        # failure in 44901405762). Still require the actual canal capture.
         if int(observed['MetroDashGame.Level'])==1 and not canal_captured:
-            capture_paused('06-canal');canal_captured=True
-        if int(observed['MetroDashGame.Level'])>=target_level and jumped and slid:
+            fresh=state(); fv={v['key']:v['value'] for v in fresh['values']}
+            current=int(float(fv['MetroDashGame.lane']))
+            if not any(i['group']==current and -5<i['y']<float(fv['MetroDashGame.Speed'])*2.5 for i in hazards(fresh)):
+                capture_paused('06-canal');canal_captured=True
+        if int(observed['MetroDashGame.Level'])>=target_level and jumped and slid and canal_captured:
             capture_paused('06-district-'+str(target_level));return
         time.sleep(.02 if danger and danger['y']<speed*1.4 else .1)
     raise AssertionError(('Survival/obstacle/district gate incomplete',number('Score'),jumped,slid,playing()))
