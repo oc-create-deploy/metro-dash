@@ -124,7 +124,7 @@ def survive_until(target_level, seconds=150):
                 i['group']==wanted['group'] and i['y']<wanted['y']-1 for i in nearby):
             move_to(wanted['group']);lane=int(number('lane'))
         danger=next((i for i in nearby if i['group']==lane),None)
-        if danger and danger['id'] in (1,4):
+        if danger and (danger['id'] in (1,4) or (danger['id']==2 and jumped) or (danger['id']==3 and slid)):
             # Escape the current row; a later row 26m away must not
             # disqualify its otherwise clear escape lane.
             horizon=max(speed*.9, danger['y']+3)
