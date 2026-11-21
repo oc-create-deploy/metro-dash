@@ -98,6 +98,7 @@ def survive_until(target_level, seconds=150):
     """Read-only obstacle observation guides real control taps; no hidden game writes."""
     end=time.time()+seconds
     jumped=slid=False
+    canal_captured=False
     next_action_at=0
     while playing() and time.time()<end:
         s=state(); lane=int(number('lane')); speed=number('Speed')
@@ -112,10 +113,13 @@ def survive_until(target_level, seconds=150):
             safe=[l for l in range(3) if not any(i['group']==l and -5<i['y']<34 for i in ahead)]
             if safe:move_to(min(safe,key=lambda l:abs(l-lane)))
         elif danger and danger['id'] in (2,3) and danger['y']<speed*.42 and time.time()>next_action_at:
+            (out/('hazard-before-'+str(seq)+'.json')).write_text(json.dumps(s,indent=2))
             key='IsJumping' if danger['id']==2 else 'IsSliding'
             press(160 if danger['id']==2 else 270,881)
             wait_for(lambda:flag(key) or not playing(),2)
-            assert playing() and flag(key),'Required real jump/slide did not activate'
+            if not (playing() and flag(key)):
+                capture('hazard-input-failed')
+                raise AssertionError(('Required real jump/slide did not activate',key,danger,number('Score'),playing()))
             # Crossing the obstacle alive proves geometry, not just animation.
             kind=danger['id'];deadline=time.time()+1.2
             while playing() and time.time()<deadline:time.sleep(.08)
@@ -130,41 +134,61 @@ def survive_until(target_level, seconds=150):
             for token in tokens:
                 if not any(i['group']==token['group'] and -5<i['y']<34 for i in ahead):
                     move_to(token['group']);break
+        if int(number('Level'))==1 and not canal_captured:
+            capture('06-canal-running');canal_captured=True
         if int(number('Level'))>=target_level and jumped and slid:
             capture('06-district-'+str(target_level));return
         time.sleep(.1)
     raise AssertionError(('Survival/obstacle/district gate incomplete',number('Score'),jumped,slid,playing()))
 
-state();action('- tapOn:\n    point: "95%, 95%"');capture('01-menu-3d')
-press(215,539);wait_for(playing)
-swipe('left');wait_for(lambda:int(number('lane'))==0)
-swipe('right');wait_for(lambda:int(number('lane'))==1)
-swipe('up');wait_for(lambda:flag('IsJumping'))
-press(362,54);wait_for(lambda:not playing());capture('02-jump-paused')
-score=number('Score');h=number('PlayerHeight');time.sleep(1)
-assert number('Score')==score and number('PlayerHeight')==h,'Paused world advanced'
-press(215,539);wait_for(playing)
-wait_for(lambda:not flag('IsJumping'))
-swipe('down');wait_for(lambda:flag('IsSliding'))
-press(362,54);wait_for(lambda:not playing());capture('03-slide-paused')
-press(215,539);wait_for(playing)
-initial=number('Coins')
-survive_until(2,150)
-assert number('Coins')>initial,'No actual token collected'
-assert int(number('UnlockedLevel'))==2,'Districts did not unlock'
-# Deliberately collide with a train, then exercise retry.
-end=time.time()+50
-while playing() and time.time()<end:
-    trains=sorted([i for i in hazards(state()) if i['id']==1 and 7<i['y']<35],key=lambda i:i['y'])
-    if trains:move_to(trains[0]['group'])
-    time.sleep(.12)
-assert not playing() and flag('gameOver'),'Real train collision did not end run'
-capture('07-train-collision');coins=number('Coins');best=number('best');assert best>=1200
-press(215,539);wait_for(playing);assert number('Score')<20,'Retry did not reset run'
-press(362,54);wait_for(lambda:not playing())
-restart();assert number('Coins')==coins and number('best')==best and int(number('UnlockedLevel'))==2,'Cold-launch persistence mismatch'
-capture('08-restored')
-press(331,663);press(215,539);wait_for(playing)
-assert number('Score')>=1200 and int(number('Level'))==2,'Unlocked district selection did not start correct route'
-press(362,54);capture('09-night-start')
-(out/'result.json').write_text(json.dumps({'nativeSwipeLeftRight':True,'nativeSwipeJumpSlide':True,'pauseStableResume':True,'actualCoinCollection':True,'hurdleJumpAndGateSlide':True,'trainLossRetry':True,'allDistrictsUnlocked':True,'coinsBestDistrictColdLaunch':True,'districtSelection':True,'visualAcceptance':'REQUIRES HUMAN IMAGE INSPECTION'}))
+try:
+    state();action('- tapOn:\n    point: "95%, 95%"');capture('01-menu-3d')
+    press(215,539);wait_for(playing)
+    capture('01-running-3d')
+    swipe('left');wait_for(lambda:int(number('lane'))==0)
+    swipe('right');wait_for(lambda:int(number('lane'))==1)
+    swipe('up');wait_for(lambda:flag('IsJumping'))
+    press(362,54);wait_for(lambda:not playing());capture('02-jump-paused')
+    score=number('Score');h=number('PlayerHeight');time.sleep(1)
+    assert number('Score')==score and number('PlayerHeight')==h,'Paused world advanced'
+    press(215,539);wait_for(playing)
+    wait_for(lambda:not flag('IsJumping'))
+    swipe('down');wait_for(lambda:flag('IsSliding'))
+    press(362,54);wait_for(lambda:not playing());capture('03-slide-paused')
+    press(215,539);wait_for(playing)
+    initial=number('Coins')
+    survive_until(2,150)
+    assert number('Coins')>initial,'No actual token collected'
+    assert int(number('UnlockedLevel'))==2,'Districts did not unlock'
+    # Deliberately collide with a train, then exercise retry.
+    end=time.time()+50
+    while playing() and time.time()<end:
+        trains=sorted([i for i in hazards(state()) if i['id']==1 and 7<i['y']<35],key=lambda i:i['y'])
+        if trains:move_to(trains[0]['group'])
+        time.sleep(.12)
+    assert not playing() and flag('gameOver'),'Real train collision did not end run'
+    capture('07-train-collision');coins=number('Coins');best=number('best');assert best>=1200
+    press(215,539);wait_for(playing);assert number('Score')<20,'Retry did not reset run'
+    press(362,54);wait_for(lambda:not playing())
+    restart();assert number('Coins')==coins and number('best')==best and int(number('UnlockedLevel'))==2,'Cold-launch persistence mismatch'
+    capture('08-restored')
+    press(331,663);press(215,539);wait_for(playing)
+    assert number('Score')>=1200 and int(number('Level'))==2,'Unlocked district selection did not start correct route'
+    press(362,54);capture('09-night-start')
+    press(215,539);wait_for(playing)
+    # Switch to a real system app, then foreground Metro; never mutate its model.
+    subprocess.run(['xcrun','simctl','launch',udid,'com.apple.mobilesafari'],check=True)
+    wait_for(lambda:not playing())
+    background_score=number('Score');time.sleep(1)
+    assert number('Score')==background_score,'Background world advanced'
+    subprocess.run(['xcrun','simctl','launch',udid,bundle,'--playabilityQA'],check=True)
+    wait_for(lambda:not playing())
+    assert number('Score')==background_score,'Foreground unexpectedly resumed world'
+    capture('10-background-return-paused')
+    press(215,539);wait_for(playing)
+    wait_for(lambda:number('Score')>background_score)
+    press(362,54);wait_for(lambda:not playing())
+    (out/'result.json').write_text(json.dumps({'nativeSwipeLeftRight':True,'nativeSwipeJumpSlide':True,'pauseStableResume':True,'actualCoinCollection':True,'hurdleJumpAndGateSlide':True,'trainLossRetry':True,'allDistrictsUnlocked':True,'coinsBestDistrictColdLaunch':True,'districtSelection':True,'backgroundPauseReturnResume':True,'visualAcceptance':'REQUIRES HUMAN IMAGE INSPECTION'}))
+except Exception:
+    capture('failure-state')
+    raise
