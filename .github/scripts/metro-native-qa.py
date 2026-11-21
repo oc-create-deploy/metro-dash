@@ -134,6 +134,7 @@ def survive_until(target_level, seconds=150):
             (out/('hazard-before-'+str(seq)+'.json')).write_text(json.dumps(s,indent=2))
             # Native touch delivery consumed the previous 0.28s approach window.
             # Lead input, retaining real activation AND survival assertions.
+            action_started=time.time()
             key='IsJumping' if danger['id']==2 else 'IsSliding'
             press(160 if danger['id']==2 else 270,881)
             wait_for(lambda:flag(key) or not playing(),2)
@@ -141,9 +142,18 @@ def survive_until(target_level, seconds=150):
                 capture('hazard-input-failed')
                 raise AssertionError(('Required real jump/slide did not activate',key,danger,number('Score'),playing()))
             # Crossing the obstacle alive proves geometry, not just animation.
-            kind=danger['id'];deadline=time.time()+1.2
-            while playing() and time.time()<deadline:time.sleep(.08)
-            assert playing(),('Failed obstacle clearance',kind)
+            kind=danger['id']
+            # Wait only to the observed row's trailing collision edge, not a
+            # fixed 1.2s after input (which approached the NEXT train blindly).
+            deadline=action_started+2
+            cleared=False
+            while playing() and time.time()<deadline:
+                row=[i for i in hazards(state()) if i['id']==kind and i['group']==danger['group'] and i['y']<danger['y']+2]
+                if not row or min(i['y'] for i in row)<-1:
+                    cleared=True;break
+                time.sleep(.05)
+            assert playing() and cleared,('Failed obstacle clearance',kind)
+
             if kind==2 and not jumped:capture_paused('04-hurdle-cleared');jumped=True
             if kind==3 and not slid:capture_paused('05-gate-cleared');slid=True
             next_action_at=time.time()+.6
