@@ -31,3 +31,20 @@ Current Linux ARM64 host has no Unity Editor or iOS runtime. Licensed Unity expo
 and actual simulator gameplay checks run in existing CI; no new paid services.
 Old 2D native assertions are invalid for this redesign and must be replaced.
 Physical-device verification remains unavailable, not claimed.
+
+## Native acceptance — 2026-11-21
+
+- Native QA run 44933295393 passed all real swipe/button, hurdle/gate clearance,
+  token collection, train loss/retry, 600/1200m unlock, exact cold persistence,
+  district selection and genuine running Safari/background/return/resume gates.
+- Export 44917501743; tested head 8d7bf34. Gameplay/rendering code remains the
+  lighting-corrected f4d9e47; later Unity changes are read-only QA publication.
+- Inspected all 13 current native captures (menu, jump/slide pause, explicitly
+  deferred clearance followups, canal/night, train loss, restored menu, actual
+  Safari and fresh paused return) and original unobscured running image from
+  run 44875831756, same rendering code. Original low-poly courier/trains/route,
+  legible HUD/controls, no pink materials or safe-area overlaps observed.
+- Current captures intentionally show pause overlays, not fabricated live poses.
+  Raw clearance observations are separate from deferred followup screenshots.
+- Functional and visual simulator acceptance complete. Physical device not tested.
+- Replacement release/distribution still pending; build 4 unused at fresh ASC check.
