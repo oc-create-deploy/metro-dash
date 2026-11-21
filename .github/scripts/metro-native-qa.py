@@ -103,9 +103,11 @@ def start_or_resume(menu_selection=None):
         before=state(); values={v['key']:v['value'] for v in before['values']}
         assert values['MetroDashGame.gameOver']=='False'
         assert values['MetroDashGame.started']=='True' or menu_selection is not None
-        time.sleep(.2)
-        after=state()
-        assert after['frame']>before['frame'] and not playing() and not flag('gameOver')
+        # Recorder cadence is .35s: .2s sleep can return the same frame.
+        # Require observed freshness within a bound, never infer it from sleep.
+        wait_for(lambda:state()['frame']>before['frame'],5)
+        after=state();av={v['key']:v['value'] for v in after['values']}
+        assert after['frame']>before['frame'] and av['MetroDashGame.playing']=='False' and av['MetroDashGame.gameOver']=='False'
         with (out/'resume-input-retries.jsonl').open('a') as f:
             f.write(json.dumps({'before':before,'after':after})+'\n')
         if values['MetroDashGame.started']=='False':
