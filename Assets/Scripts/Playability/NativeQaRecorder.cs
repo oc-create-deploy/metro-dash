@@ -20,7 +20,7 @@ public sealed class NativeQaRecorder : MonoBehaviour
     }
     [Serializable] public class Snapshot
     {
-        public string scene;public int frame,width,height;
+        public string scene;public int frame,width,height;public double utcSeconds;
         public float safeX,safeY,safeW,safeH;
         public List<Value> values=new List<Value>();public List<Item> items=new List<Item>();public List<string> errors=new List<string>();
     }
@@ -70,7 +70,7 @@ public sealed class NativeQaRecorder : MonoBehaviour
         try
         {
             Rect safe=Screen.safeArea;
-            var state=new Snapshot{scene=SceneManager.GetActiveScene().name,frame=Time.frameCount,width=Screen.width,height=Screen.height,safeX=safe.x,safeY=safe.y,safeW=safe.width,safeH=safe.height,errors=new List<string>(errors)};
+            var state=new Snapshot{utcSeconds=(DateTime.UtcNow-new DateTime(1970,1,1,0,0,0,DateTimeKind.Utc)).TotalSeconds,scene=SceneManager.GetActiveScene().name,frame=Time.frameCount,width=Screen.width,height=Screen.height,safeX=safe.x,safeY=safe.y,safeW=safe.width,safeH=safe.height,errors=new List<string>(errors)};
             string[] fields={"playing","gameOver","started","Score","Coins","IsPlaying","Remaining","TrayCount","Won","Lost","coins","workers","factories","prestige","best","lane","distance","state","points","recordPoints","playerCount","currentLevel","carryingItem","IsJumping","IsSliding","PlayerHeight","Speed","Level","UnlockedLevel","runnerX","slideTimer"};
             string[] models={"MetroDashGame","EmpireIdleGame","MatchscapeGame","GameManager","GameController","GameFlowManager","LevelController","PlayerManager"};
             foreach(MonoBehaviour c in FindObjectsOfType<MonoBehaviour>())

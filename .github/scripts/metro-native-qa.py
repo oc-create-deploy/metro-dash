@@ -136,8 +136,12 @@ def hazards(s):
     # Source collision edge: length/2+.3. Keep .2m margin, but do not
     # treat a passed 1m gate/hurdle as an 8m train. The blanket -5m
     # blocked lane2 until too late in the 44913929626 two-lane escape.
-    return [i for i in s['items'] if i['kind']=='barrier' and
-            i['y']>-(4.5 if i['id']==1 else 1.5 if i['id']==4 else 1.0)]
+    values={v['key']:v['value'] for v in s['values']}
+    age=max(0,time.time()-s['utcSeconds'])
+    travel=float(values['MetroDashGame.Speed'])*min(age,.5) if values['MetroDashGame.playing']=='True' else 0
+    # Planning estimates only: preserve original evidence and never write model.
+    estimated=[dict(i,y=i['y']-travel) for i in s['items'] if i['kind']=='barrier']
+    return [i for i in estimated if i['y']>-(4.5 if i['id']==1 else 1.5 if i['id']==4 else 1.0)]
 
 def capture_paused(label):
     capture_began=time.time()
