@@ -130,14 +130,17 @@ def survive_until(target_level, seconds=150):
             horizon=max(speed*.9, danger['y']+3)
             safe=[l for l in range(3) if not any(i['group']==l and -5<i['y']<horizon for i in ahead)]
             if safe:move_to(min(safe,key=lambda l:abs(l-lane)))
-        elif danger and danger['id'] in (2,3) and danger['y']<speed*.75 and time.time()>next_action_at:
+        elif danger and danger['id'] in (2,3) and danger['y']<speed*.95 and time.time()>next_action_at:
             (out/('hazard-before-'+str(seq)+'.json')).write_text(json.dumps(s,indent=2))
-            # Native touch delivery consumed the previous 0.28s approach window.
-            # Lead input, retaining real activation AND survival assertions.
+            # Snapshot cadence (~0.35s) plus native delivery can skip a
+            # 0.75s threshold into a <0.45s approach. Lead by 0.95s;
+            # still require actual activation AND observed obstacle clearance.
             action_started=time.time()
             key='IsJumping' if danger['id']==2 else 'IsSliding'
             press(160 if danger['id']==2 else 270,881)
             wait_for(lambda:flag(key) or not playing(),2)
+            with (out/'input-latency.jsonl').open('a') as trace:
+                trace.write(json.dumps({'kind':danger['id'],'beforeZ':danger['y'],'speed':speed,'seconds':time.time()-action_started,'score':number('Score'),'active':flag(key),'playing':playing()})+'\n')
             if not (playing() and flag(key)):
                 capture('hazard-input-failed')
                 raise AssertionError(('Required real jump/slide did not activate',key,danger,number('Score'),playing()))
