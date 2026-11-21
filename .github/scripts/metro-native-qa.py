@@ -132,7 +132,12 @@ def swipe(direction):
     start,end=starts[direction];sx,sy=bridge.xy(start);ex,ey=bridge.xy(end)
     bridge.native_request(bridge.native_base,'swipe',{'appId':bundle,'startX':sx,'startY':sy,'endX':ex,'endY':ey,'duration':.2})
 def flag(key):return val('MetroDashGame.'+key)=='True'
-def hazards(s):return [i for i in s['items'] if i['kind']=='barrier' and i['y']>-5]
+def hazards(s):
+    # Source collision edge: length/2+.3. Keep .2m margin, but do not
+    # treat a passed 1m gate/hurdle as an 8m train. The blanket -5m
+    # blocked lane2 until too late in the 44913929626 two-lane escape.
+    return [i for i in s['items'] if i['kind']=='barrier' and
+            i['y']>-(4.5 if i['id']==1 else 1.5 if i['id']==4 else 1.0)]
 
 def capture_paused(label):
     capture_began=time.time()
