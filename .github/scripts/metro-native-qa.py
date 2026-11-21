@@ -57,7 +57,7 @@ def action(body):
     if bridge.proc is not None and body.startswith("- tapOn:"):
         bridge.tap_direct(body.split('"')[1])
     else: bridge.action(body)
-    time.sleep(.1)
+    # Transition polling below verifies delivery; do not add blind latency.
 
 def tap(text):
     choices=[i for i in state()['items'] if i['kind']=='button' and i['interactable'] and text.casefold() in (i.get('text','').strip().casefold(),i['name'].strip().casefold())]
@@ -81,7 +81,7 @@ def wait_for(predicate,seconds=8):
     end=time.time()+seconds
     while time.time()<end:
         if predicate():return
-        time.sleep(.2)
+        time.sleep(.05)
     assert predicate(),'Observed native transition timed out'
 def start_or_resume():
     press(215,539)
@@ -104,8 +104,13 @@ def move_to(target):
     for _ in range(2):
         lane=int(number('lane'))
         if lane==target:return
+        began=time.time();before=state()
         press(59 if target<lane else 371,881)
         wait_for(lambda:int(number('lane'))!=lane or not playing(),3)
+        after=state()
+        with (out/'lane-input-latency.jsonl').open('a') as f:
+            f.write(json.dumps({'target':target,'from':lane,'seconds':time.time()-began,'before':before,'after':after})+'\n')
+        if not playing():return
 def swipe(direction):
     # Same running XCUITest driver; genuine native screen gestures, not model writes.
     bridge.ensure_native()
