@@ -13,12 +13,18 @@ def state():
     global container
     deadline = time.time()+300
     while time.time()<deadline:
-        for p in container.rglob('qa-state.json'):
+        candidates=list(container.rglob('qa-state.json'))
+        for p in candidates:
             try:
                 s=json.loads(p.read_text())
                 assert not s['errors'],s['errors']
                 if s["frame"] >= 30: return s
             except (json.JSONDecodeError,FileNotFoundError): pass
+        if candidates:
+            # Recorder uses non-atomic File.WriteAllText. A partial JSON read
+            # is not a relocated container: avoid slow simctl IPC while running.
+            time.sleep(.01)
+            continue
         # Simulator can relocate the data container during a slow first launch.
         try:
             container = pathlib.Path(subprocess.check_output(['xcrun','simctl','get_app_container',udid,bundle,'data'],text=True).strip())
