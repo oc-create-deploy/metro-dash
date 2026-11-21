@@ -71,7 +71,7 @@ public sealed class NativeQaRecorder : MonoBehaviour
         {
             Rect safe=Screen.safeArea;
             var state=new Snapshot{scene=SceneManager.GetActiveScene().name,frame=Time.frameCount,width=Screen.width,height=Screen.height,safeX=safe.x,safeY=safe.y,safeW=safe.width,safeH=safe.height,errors=new List<string>(errors)};
-            string[] fields={"playing","gameOver","started","Score","Coins","IsPlaying","Remaining","TrayCount","Won","Lost","coins","workers","factories","prestige","best","lane","distance","state","points","recordPoints","playerCount","currentLevel","carryingItem"};
+            string[] fields={"playing","gameOver","started","Score","Coins","IsPlaying","Remaining","TrayCount","Won","Lost","coins","workers","factories","prestige","best","lane","distance","state","points","recordPoints","playerCount","currentLevel","carryingItem","IsJumping","IsSliding","PlayerHeight","Speed","Level","UnlockedLevel","runnerX","slideTimer"};
             string[] models={"MetroDashGame","EmpireIdleGame","MatchscapeGame","GameManager","GameController","GameFlowManager","LevelController","PlayerManager"};
             foreach(MonoBehaviour c in FindObjectsOfType<MonoBehaviour>())
             {
@@ -90,7 +90,7 @@ public sealed class NativeQaRecorder : MonoBehaviour
                 {var item=Entry(c,"text");item.text=Read(c,"text") as string;state.items.Add(item);}
                 if(type=="MetroDashGame" && Read(c,"objects") is IEnumerable road)
                 {
-                    foreach(object o in road) state.items.Add(new Item{kind=(bool)Read(o,"coin") ? "roadCoin" : "barrier",group=(int)Read(o,"lane"),y=(float)Read(o,"y"),interactable=true});
+                    foreach(object o in road) state.items.Add(new Item{kind=(bool)Read(o,"coin") ? "roadCoin" : "barrier",group=(int)Read(o,"lane"),y=(float)Read(o,"z"),id=(int)Read(o,"kind"),interactable=true});
                 }
                 if(type=="TubeController")
                 {
@@ -126,8 +126,8 @@ public sealed class NativeQaRecorder : MonoBehaviour
                 Type yg=assembly.GetType("YG.YG2");if(yg==null) continue;
                 FieldInfo f=yg.GetField("saves",BindingFlags.Static|BindingFlags.Public);if(f!=null && f.GetValue(null)!=null) state.values.Add(new Value{key="YG2.saves",value=JsonUtility.ToJson(f.GetValue(null))});break;
             }
-            string path=Path.Combine(Application.persistentDataPath,"qa-state.json");File.WriteAllText(path,JsonUtility.ToJson(state,true));
+            string path=Path.Combine(Application.persistentDataPath,"qa-state.json");Directory.CreateDirectory(Application.persistentDataPath);File.WriteAllText(path,JsonUtility.ToJson(state,true));
         }
-        catch(Exception) { /* A missing probe fails host-side QA; never change gameplay to make a probe pass. */ }
+        catch(Exception e) { File.WriteAllText(Path.Combine(Application.persistentDataPath,"qa-recorder-error.txt"),e.ToString()); }
     }
 }

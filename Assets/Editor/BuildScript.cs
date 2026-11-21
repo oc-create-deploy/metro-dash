@@ -81,6 +81,18 @@ public static class BuildScript
     {
         const string scenePath = "Assets/Scenes/Main.unity";
         Directory.CreateDirectory(Path.GetDirectoryName(scenePath));
+        // A serialized Resources reference prevents stripping our runtime material shader.
+        Directory.CreateDirectory("Assets/Resources");
+        const string materialPath = "Assets/Resources/RunnerBase.mat";
+        if (AssetDatabase.LoadAssetAtPath<Material>(materialPath) == null)
+        {
+            var shader = Shader.Find("Standard");
+            if (shader == null) throw new InvalidOperationException("Standard shader unavailable.");
+            var material = new Material(shader);
+            material.EnableKeyword("_EMISSION");
+            AssetDatabase.CreateAsset(material, materialPath);
+            AssetDatabase.SaveAssets();
+        }
         var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
         var root = new GameObject("Metro Dash");
         root.AddComponent<MetroDashGame>();
