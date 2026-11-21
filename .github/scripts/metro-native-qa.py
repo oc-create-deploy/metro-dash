@@ -132,13 +132,13 @@ def swipe(direction):
     start,end=starts[direction];sx,sy=bridge.xy(start);ex,ey=bridge.xy(end)
     bridge.native_request(bridge.native_base,'swipe',{'appId':bundle,'startX':sx,'startY':sy,'endX':ex,'endY':ey,'duration':.2})
 def flag(key):return val('MetroDashGame.'+key)=='True'
-def hazards(s):
+def hazards(s, estimate=False):
     # Source collision edge: length/2+.3. Keep .2m margin, but do not
     # treat a passed 1m gate/hurdle as an 8m train. The blanket -5m
     # blocked lane2 until too late in the 44913929626 two-lane escape.
     values={v['key']:v['value'] for v in s['values']}
     age=max(0,time.time()-s['utcSeconds'])
-    travel=float(values['MetroDashGame.Speed'])*min(age,.5) if values['MetroDashGame.playing']=='True' else 0
+    travel=float(values['MetroDashGame.Speed'])*min(age,.5) if estimate and values['MetroDashGame.playing']=='True' else 0
     # Planning estimates only: preserve original evidence and never write model.
     estimated=[dict(i,y=i['y']-travel) for i in s['items'] if i['kind']=='barrier']
     return [i for i in estimated if i['y']>-(4.5 if i['id']==1 else 1.5 if i['id']==4 else 1.0)]
@@ -166,7 +166,7 @@ def survive_until(target_level, seconds=150):
     while playing() and time.time()<end:
         s=state(); observed={v['key']:v['value'] for v in s['values']}
         lane=int(float(observed['MetroDashGame.lane']));speed=float(observed['MetroDashGame.Speed'])
-        ahead=[i for i in hazards(s) if i['y']>-5]
+        ahead=[i for i in hazards(s,True) if i['y']>-5]
         # Train length is 8m: its front reaches the runner at z=4.3, not at its centre.
         nearby=sorted([i for i in ahead if 0<i['y']<32],key=lambda i:i['y'])
         wanted=next((i for i in nearby if (i['id']==2 and not jumped) or (i['id']==3 and not slid)),None)
@@ -183,7 +183,7 @@ def survive_until(target_level, seconds=150):
             # schedule jump/slide from the pre-steering hazard snapshot.
             s=state();observed={v['key']:v['value'] for v in s['values']}
             lane=int(float(observed['MetroDashGame.lane']));speed=float(observed['MetroDashGame.Speed'])
-            ahead=hazards(s)
+            ahead=hazards(s,True)
             nearby=sorted([i for i in ahead if 0<i['y']<32],key=lambda i:i['y'])
         danger=next((i for i in nearby if i['group']==lane),None)
         if danger and (danger['id'] in (1,4) or (danger['id']==2 and jumped) or (danger['id']==3 and slid)):
