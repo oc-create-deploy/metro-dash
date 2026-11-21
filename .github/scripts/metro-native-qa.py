@@ -145,11 +145,14 @@ def survive_until(target_level, seconds=150):
         # Train length is 8m: its front reaches the runner at z=4.3, not at its centre.
         nearby=sorted([i for i in ahead if 0<i['y']<32],key=lambda i:i['y'])
         wanted=next((i for i in nearby if (i['id']==2 and not jumped) or (i['id']==3 and not slid)),None)
-        # Never steer toward a later target through a nearer obstacle in its lane.
+        # Never steer toward a later target through a nearer obstacle in its
+        # destination OR intermediate lanes, including a train whose centre
+        # passed z0 but whose trailing 4.3m still collides. See 44899641504.
         with (out/'navigation.jsonl').open('a') as trace:
             trace.write(json.dumps({'time':time.time(),'frame':s['frame'],'score':float(observed['MetroDashGame.Score']),'lane':lane,'nearby':nearby})+'\n')
         if wanted and wanted['group']!=lane and wanted['y']>speed*1.7 and not any(
-                i['group']==wanted['group'] and i['y']<wanted['y']-1 for i in nearby):
+                i['group']!=lane and min(lane,wanted['group'])<=i['group']<=max(lane,wanted['group'])
+                and -5<i['y']<wanted['y']-1 for i in ahead):
             move_to(wanted['group'])
             # Native lane input consumed ~0.7s in 44884402240; never
             # schedule jump/slide from the pre-steering hazard snapshot.
