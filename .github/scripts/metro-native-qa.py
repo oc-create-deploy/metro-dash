@@ -297,9 +297,19 @@ try:
     press(331,663);start_or_resume(menu_selection=(331,663))
     assert number('Score')>=1200 and int(number('Level'))==2,'Unlocked district selection did not start correct route'
     press(362,54);capture('09-night-start')
+    # Prelaunch the system app while Metro is already paused: cold Safari
+    # startup can consume the entire first hazard approach before focus moves.
+    # This is setup, NOT proof of the running-background pause gate below.
+    warm_frame=state()['frame']
+    subprocess.run(['xcrun','simctl','launch',udid,'com.apple.mobilesafari'],check=True)
+    subprocess.run(['xcrun','simctl','launch',udid,bundle,'--playabilityQA'],check=True)
+    wait_for(lambda:state()['frame']>warm_frame and not playing(),20)
+    assert not flag('gameOver'),'Paused system-app prelaunch lost the run'
     start_or_resume()
     # Switch to a real system app, then foreground Metro; never mutate its model.
     before_background=state()
+    (out/'before-background.json').write_text(json.dumps(before_background,indent=2))
+    background_began=time.time()
     subprocess.run(['xcrun','simctl','launch',udid,'com.apple.mobilesafari'],check=True)
     # Unity's recorder is suspended with the app: its on-disk pre-background
     # snapshot can still say playing=True. Inspect the real system app, then
@@ -308,6 +318,7 @@ try:
     time.sleep(1)
     subprocess.run(['xcrun','simctl','launch',udid,bundle,'--playabilityQA'],check=True)
     wait_for(lambda:state()['frame']>before_background['frame'] and not playing(),20)
+    (out/'after-background.json').write_text(json.dumps({'seconds':time.time()-background_began,'state':state()},indent=2))
     assert not flag('gameOver'),'Background return lost the run'
     background_score=number('Score');time.sleep(1)
     assert number('Score')==background_score,'Foreground unexpectedly resumed world'
