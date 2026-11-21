@@ -146,7 +146,8 @@ def survive_until(target_level, seconds=150):
 try:
     state();action('- tapOn:\n    point: "95%, 95%"');capture('01-menu-3d')
     press(215,539);wait_for(playing)
-    capture('01-running-3d')
+    # Running image already verified in 44875831756. Synchronous simctl
+    # screenshots took seconds while hazards advanced; do not block first swipes.
     swipe('left');wait_for(lambda:int(number('lane'))==0)
     swipe('right');wait_for(lambda:int(number('lane'))==1)
     swipe('up');wait_for(lambda:flag('IsJumping'))
