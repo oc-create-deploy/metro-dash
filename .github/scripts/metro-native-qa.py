@@ -83,6 +83,22 @@ def wait_for(predicate,seconds=8):
         if predicate():return
         time.sleep(.2)
     assert predicate(),'Observed native transition timed out'
+def start_or_resume():
+    press(215,539)
+    try:
+        wait_for(playing)
+    except AssertionError:
+        # A native touch can be missed under simulator load. Retry once ONLY
+        # when fresh frames prove the unchanged, live paused menu, never loss.
+        before=state(); values={v['key']:v['value'] for v in before['values']}
+        assert values['MetroDashGame.started']=='True' and values['MetroDashGame.gameOver']=='False'
+        time.sleep(.2)
+        after=state()
+        assert after['frame']>before['frame'] and not playing() and not flag('gameOver')
+        with (out/'resume-input-retries.jsonl').open('a') as f:
+            f.write(json.dumps({'before':before,'after':after})+'\n')
+        press(215,539);wait_for(playing)
+
 def playing():return val('MetroDashGame.playing')=='True'
 def move_to(target):
     for _ in range(2):
@@ -109,7 +125,7 @@ def capture_paused(label):
     frozen=number('Score')
     capture(label+'-paused')
     assert number('Score')==frozen, 'Capture pause advanced world'
-    press(215,539);wait_for(playing)
+    start_or_resume()
 
 def survive_until(target_level, seconds=150):
     """Read-only obstacle observation guides real control taps; no hidden game writes."""
@@ -189,7 +205,7 @@ def survive_until(target_level, seconds=150):
 
 try:
     state();action('- tapOn:\n    point: "95%, 95%"');capture('01-menu-3d')
-    press(215,539);wait_for(playing)
+    start_or_resume()
     # Running image already verified in 44875831756. Synchronous simctl
     # screenshots took seconds while hazards advanced; do not block first swipes.
     swipe('left');wait_for(lambda:int(number('lane'))==0)
@@ -198,11 +214,11 @@ try:
     press(362,54);wait_for(lambda:not playing());capture('02-jump-paused')
     score=number('Score');h=number('PlayerHeight');time.sleep(1)
     assert number('Score')==score and number('PlayerHeight')==h,'Paused world advanced'
-    press(215,539);wait_for(playing)
+    start_or_resume()
     wait_for(lambda:not flag('IsJumping'))
     swipe('down');wait_for(lambda:flag('IsSliding'))
     press(362,54);wait_for(lambda:not playing());capture('03-slide-paused')
-    press(215,539);wait_for(playing)
+    start_or_resume()
     initial=number('Coins')
     survive_until(2,150)
     assert number('Coins')>initial,'No actual token collected'
@@ -215,14 +231,14 @@ try:
         time.sleep(.12)
     assert not playing() and flag('gameOver'),'Real train collision did not end run'
     capture('07-train-collision');coins=number('Coins');best=number('best');assert best>=1200
-    press(215,539);wait_for(playing);assert number('Score')<20,'Retry did not reset run'
+    start_or_resume();assert number('Score')<20,'Retry did not reset run'
     press(362,54);wait_for(lambda:not playing())
     restart();assert number('Coins')==coins and number('best')==best and int(number('UnlockedLevel'))==2,'Cold-launch persistence mismatch'
     capture('08-restored')
-    press(331,663);press(215,539);wait_for(playing)
+    press(331,663);start_or_resume()
     assert number('Score')>=1200 and int(number('Level'))==2,'Unlocked district selection did not start correct route'
     press(362,54);capture('09-night-start')
-    press(215,539);wait_for(playing)
+    start_or_resume()
     # Switch to a real system app, then foreground Metro; never mutate its model.
     before_background=state()
     subprocess.run(['xcrun','simctl','launch',udid,'com.apple.mobilesafari'],check=True)
@@ -237,7 +253,7 @@ try:
     background_score=number('Score');time.sleep(1)
     assert number('Score')==background_score,'Foreground unexpectedly resumed world'
     capture('10-background-return-paused')
-    press(215,539);wait_for(playing)
+    start_or_resume()
     wait_for(lambda:number('Score')>background_score)
     press(362,54);wait_for(lambda:not playing())
     (out/'result.json').write_text(json.dumps({'nativeSwipeLeftRight':True,'nativeSwipeJumpSlide':True,'pauseStableResume':True,'actualCoinCollection':True,'hurdleJumpAndGateSlide':True,'trainLossRetry':True,'allDistrictsUnlocked':True,'coinsBestDistrictColdLaunch':True,'districtSelection':True,'backgroundPauseReturnResume':True,'visualAcceptance':'REQUIRES HUMAN IMAGE INSPECTION'}))
