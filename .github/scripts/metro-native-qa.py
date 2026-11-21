@@ -5,6 +5,16 @@ udid = os.environ['UDID']; bundle = os.environ['APP_BUNDLE_ID']
 container = pathlib.Path(subprocess.check_output(['xcrun','simctl','get_app_container',udid,bundle,'data'],text=True).strip())
 seq = 0
 snapshot_path = None
+telemetry_pending={}
+def telemetry(name,record):
+    telemetry_pending.setdefault(name,[]).append(json.dumps(record))
+def flush_telemetry():
+    for name,lines in telemetry_pending.items():
+        if lines:
+            with (out/name).open("a") as f:f.write("\n".join(lines)+"\n")
+            lines.clear()
+import atexit
+atexit.register(flush_telemetry)
 import importlib.util
 spec=importlib.util.spec_from_file_location('touchbridge',pathlib.Path(__file__).with_name('native-touch-bridge.py'))
 module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
@@ -49,6 +59,7 @@ def state():
     raise AssertionError('Read-only native snapshot missing')
 
 def capture(label):
+    flush_telemetry()
     (out/(label+'.json')).write_text(json.dumps(state(),indent=2))
     subprocess.run(['xcrun','simctl','io',udid,'screenshot',str(out/(label+'.png'))],check=True)
 
@@ -123,8 +134,7 @@ def move_to(target):
         press(59 if target<lane else 371,881)
         wait_for(lambda:int(number('lane'))!=lane or not playing(),3)
         after=state()
-        with (out/'lane-input-latency.jsonl').open('a') as f:
-            f.write(json.dumps({'target':target,'from':lane,'seconds':time.time()-began,'before':before,'after':after})+'\n')
+        telemetry('lane-input-latency.jsonl',{'target':target,'from':lane,'seconds':time.time()-began,'before':before,'after':after})
         if not playing():return
 def swipe(direction):
     # Same running XCUITest driver; genuine native screen gestures, not model writes.
@@ -176,8 +186,7 @@ def survive_until(target_level, seconds=150):
         # Never steer toward a later target through a nearer obstacle in its
         # destination OR intermediate lanes, including a train whose centre
         # passed z0 but whose trailing 4.3m still collides. See 44899641504.
-        with (out/'navigation.jsonl').open('a') as trace:
-            trace.write(json.dumps({'time':time.time(),'frame':s['frame'],'score':float(observed['MetroDashGame.Score']),'lane':lane,'nearby':nearby})+'\n')
+        telemetry('navigation.jsonl',{'time':time.time(),'frame':s['frame'],'score':float(observed['MetroDashGame.Score']),'lane':lane,'nearby':nearby})
         if wanted and wanted['group']!=lane and wanted['y']>speed*1.7 and not any(
                 i['group']!=lane and min(lane,wanted['group'])<=i['group']<=max(lane,wanted['group'])
                 and -5<i['y']<wanted['y']-1 for i in ahead):
