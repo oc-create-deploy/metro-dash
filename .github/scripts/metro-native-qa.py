@@ -120,9 +120,14 @@ def survive_until(target_level, seconds=150):
         # Never steer toward a later target through a nearer obstacle in its lane.
         with (out/'navigation.jsonl').open('a') as trace:
             trace.write(json.dumps({'score':number('Score'),'lane':lane,'nearby':nearby})+'\n')
-        if wanted and wanted['y']>speed*.7 and not any(
+        if wanted and wanted['y']>speed*(.7 if wanted['group']==lane else 1.7) and not any(
                 i['group']==wanted['group'] and i['y']<wanted['y']-1 for i in nearby):
-            move_to(wanted['group']);lane=int(number('lane'))
+            move_to(wanted['group'])
+            # Native lane input consumed ~0.7s in 44884402240; never
+            # schedule jump/slide from the pre-steering hazard snapshot.
+            s=state();lane=int(number('lane'));speed=number('Speed')
+            ahead=hazards(s)
+            nearby=sorted([i for i in ahead if 0<i['y']<32],key=lambda i:i['y'])
         danger=next((i for i in nearby if i['group']==lane),None)
         if danger and (danger['id'] in (1,4) or (danger['id']==2 and jumped) or (danger['id']==3 and slid)):
             # Escape the current row; a later row 26m away must not
