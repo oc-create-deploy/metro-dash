@@ -66,6 +66,7 @@ public sealed class MetroDashGame : MonoBehaviour
         => Shape(name, PrimitiveType.Cube, parent, pos, size, mat);
     private void BuildWorld()
     {
+        RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
         RenderSettings.ambientLight = new Color(.62f, .69f, .8f);
         RenderSettings.fog = true; RenderSettings.fogMode = FogMode.Linear;
         RenderSettings.fogColor = new Color(.82f, .78f, .73f);
@@ -78,7 +79,12 @@ public sealed class MetroDashGame : MonoBehaviour
         gameCamera.transform.LookAt(new Vector3(0, 1.3f, 13));
         var sun = new GameObject("Warm morning sun").AddComponent<Light>(); sun.type = LightType.Directional;
         sun.transform.rotation = Quaternion.Euler(43, -28, 0); sun.color = new Color(1, .86f, .69f); sun.intensity = 1.2f;
-        sun.shadows = LightShadows.Soft; QualitySettings.shadowDistance = 45;
+        sun.shadows = LightShadows.Soft; sun.shadowStrength = .65f;
+        sun.shadowBias = .05f; sun.shadowNormalBias = .3f;
+        QualitySettings.shadows = ShadowQuality.All;
+        QualitySettings.shadowResolution = ShadowResolution.High;
+        QualitySettings.shadowDistance = 45;
+        QualitySettings.antiAliasing = 4;
         var ground = Mat("ballast", new Color(.28f, .33f, .39f));
         var platform = Mat("platform", new Color(.66f, .69f, .68f));
         var rail = Mat("rail", new Color(.59f, .67f, .73f));

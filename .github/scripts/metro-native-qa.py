@@ -112,8 +112,10 @@ def survive_until(target_level, seconds=150):
         if danger and danger['id'] in (1,4):
             safe=[l for l in range(3) if not any(i['group']==l and -5<i['y']<34 for i in ahead)]
             if safe:move_to(min(safe,key=lambda l:abs(l-lane)))
-        elif danger and danger['id'] in (2,3) and danger['y']<speed*.42 and time.time()>next_action_at:
+        elif danger and danger['id'] in (2,3) and danger['y']<speed*.75 and time.time()>next_action_at:
             (out/('hazard-before-'+str(seq)+'.json')).write_text(json.dumps(s,indent=2))
+            # Native touch delivery consumed the previous 0.28s approach window.
+            # Lead input, retaining real activation AND survival assertions.
             key='IsJumping' if danger['id']==2 else 'IsSliding'
             press(160 if danger['id']==2 else 270,881)
             wait_for(lambda:flag(key) or not playing(),2)
