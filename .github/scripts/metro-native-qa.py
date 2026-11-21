@@ -82,38 +82,84 @@ def move_to(target):
     for _ in range(2):
         lane=int(number('lane'))
         if lane==target:return
-        press(74 if target<lane else 356,881)
+        press(59 if target<lane else 371,881)
         wait_for(lambda:int(number('lane'))!=lane or not playing(),3)
-state();action('- tapOn:\n    point: "95%, 95%"');capture('01-menu')
-press(215,520);wait_for(playing)
-move_to(0);assert int(number('lane'))==0
-move_to(2);assert int(number('lane'))==2
-press(215,881);wait_for(lambda:not playing())
-capture('02-paused');score=number('Score');time.sleep(2);assert number('Score')==score,'Paused distance changed'
-press(215,520);wait_for(playing)
-# Drive normal UI toward observed coins; collisions/retries remain real.
-initial=number('Coins');end=time.time()+120;loss=False
-while time.time()<end and (number('Coins')<=initial or not loss):
-    if not playing():
-        assert val('MetroDashGame.gameOver')=='True','Unexpected paused state'
-        loss=True;capture('03-loss');press(215,520);wait_for(playing)
-    s=state();near=sorted([i for i in s['items'] if i['kind'] in ['roadCoin','barrier'] and 100<i['y']<700],key=lambda i:-i['y'])
-    if near:
-        obj=near[0];target=obj['group'] if obj['kind']=='roadCoin' else (obj['group']+1)%3
-        move_to(target)
-    time.sleep(.15)
-assert number('Coins')>initial,'No actual coin collected'
-capture('04-collected')
-# Deliberately enter a real barrier lane to exercise game-over and retry.
-end=time.time()+60
+def swipe(direction):
+    # Same running XCUITest driver; genuine native screen gestures, not model writes.
+    bridge.ensure_native()
+    starts={'left':('65%, 60%','30%, 60%'),'right':('30%, 60%','65%, 60%'),
+            'up':('50%, 72%','50%, 43%'),'down':('50%, 43%','50%, 72%')}
+    start,end=starts[direction];sx,sy=bridge.xy(start);ex,ey=bridge.xy(end)
+    bridge.native_request(bridge.native_base,'swipe',{'appId':bundle,'startX':sx,'startY':sy,'endX':ex,'endY':ey,'duration':.2})
+def flag(key):return val('MetroDashGame.'+key)=='True'
+def hazards(s):return [i for i in s['items'] if i['kind']=='barrier' and i['y']>-5]
+
+def survive_until(target_level, seconds=150):
+    """Read-only obstacle observation guides real control taps; no hidden game writes."""
+    end=time.time()+seconds
+    jumped=slid=False
+    next_action_at=0
+    while playing() and time.time()<end:
+        s=state(); lane=int(number('lane')); speed=number('Speed')
+        ahead=[i for i in hazards(s) if i['y']>-5]
+        # Train length is 8m: its front reaches the runner at z=4.3, not at its centre.
+        nearby=sorted([i for i in ahead if 0<i['y']<32],key=lambda i:i['y'])
+        danger=next((i for i in nearby if i['group']==lane),None)
+        if danger and danger['id'] in (1,4):
+            safe=[l for l in range(3) if not any(i['group']==l and -5<i['y']<34 for i in ahead)]
+            if safe:move_to(min(safe,key=lambda l:abs(l-lane)))
+        elif danger and danger['id'] in (2,3) and danger['y']<speed*.42 and time.time()>next_action_at:
+            key='IsJumping' if danger['id']==2 else 'IsSliding'
+            press(160 if danger['id']==2 else 270,881)
+            wait_for(lambda:flag(key) or not playing(),2)
+            assert playing() and flag(key),'Required real jump/slide did not activate'
+            # Crossing the obstacle alive proves geometry, not just animation.
+            kind=danger['id'];deadline=time.time()+1.2
+            while playing() and time.time()<deadline:time.sleep(.08)
+            assert playing(),('Failed obstacle clearance',kind)
+            if kind==2 and not jumped:capture('04-hurdle-cleared');jumped=True
+            if kind==3 and not slid:capture('05-gate-cleared');slid=True
+            next_action_at=time.time()+.6
+        else:
+            tokens=sorted([i for i in s['items'] if i['kind']=='roadCoin' and 5<i['y']<32],key=lambda i:i['y'])
+            for token in tokens:
+                if not any(i['group']==token['group'] and -5<i['y']<34 for i in ahead):
+                    move_to(token['group']);break
+        if int(number('Level'))>=target_level and jumped and slid:
+            capture('06-district-'+str(target_level));return
+        time.sleep(.1)
+    raise AssertionError(('Survival/obstacle/district gate incomplete',number('Score'),jumped,slid,playing()))
+
+state();action('- tapOn:\n    point: "95%, 95%"');capture('01-menu-3d')
+press(215,539);wait_for(playing)
+swipe('left');wait_for(lambda:int(number('lane'))==0)
+swipe('right');wait_for(lambda:int(number('lane'))==1)
+swipe('up');wait_for(lambda:flag('IsJumping'))
+press(362,54);wait_for(lambda:not playing());capture('02-jump-paused')
+score=number('Score');h=number('PlayerHeight');time.sleep(1)
+assert number('Score')==score and number('PlayerHeight')==h,'Paused world advanced'
+press(215,539);wait_for(playing)
+wait_for(lambda:not flag('IsJumping'))
+swipe('down');wait_for(lambda:flag('IsSliding'))
+press(362,54);wait_for(lambda:not playing());capture('03-slide-paused')
+press(215,539);wait_for(playing)
+initial=number('Coins')
+survive_until(2,150)
+assert number('Coins')>initial,'No actual token collected'
+assert int(number('UnlockedLevel'))==2,'Districts did not unlock'
+# Deliberately collide with a train, then exercise retry.
+end=time.time()+50
 while playing() and time.time()<end:
-    barriers=sorted([i for i in state()['items'] if i['kind']=='barrier' and 0<i['y']<700],key=lambda i:-i['y'])
-    if barriers:move_to(barriers[0]['group'])
-    time.sleep(.2)
-assert not playing() and val('MetroDashGame.gameOver')=='True'
-capture('05-gameover');coins=number('Coins');best=number('best');assert best>0
-press(215,520);wait_for(playing);assert number('Score')<best
-press(215,881);wait_for(lambda:not playing())
-restart();assert number('Coins')==coins and number('best')==best,'Coins/best coldlaunch failed'
-capture('06-restored')
-(out/'result.json').write_text(json.dumps({'nativeLeftRight':True,'pauseStableResume':True,'actualCoinCollection':True,'barrierLossRetry':True,'coinsBestColdLaunch':True}))
+    trains=sorted([i for i in hazards(state()) if i['id']==1 and 7<i['y']<35],key=lambda i:i['y'])
+    if trains:move_to(trains[0]['group'])
+    time.sleep(.12)
+assert not playing() and flag('gameOver'),'Real train collision did not end run'
+capture('07-train-collision');coins=number('Coins');best=number('best');assert best>=1200
+press(215,539);wait_for(playing);assert number('Score')<20,'Retry did not reset run'
+press(362,54);wait_for(lambda:not playing())
+restart();assert number('Coins')==coins and number('best')==best and int(number('UnlockedLevel'))==2,'Cold-launch persistence mismatch'
+capture('08-restored')
+press(331,663);press(215,539);wait_for(playing)
+assert number('Score')>=1200 and int(number('Level'))==2,'Unlocked district selection did not start correct route'
+press(362,54);capture('09-night-start')
+(out/'result.json').write_text(json.dumps({'nativeSwipeLeftRight':True,'nativeSwipeJumpSlide':True,'pauseStableResume':True,'actualCoinCollection':True,'hurdleJumpAndGateSlide':True,'trainLossRetry':True,'allDistrictsUnlocked':True,'coinsBestDistrictColdLaunch':True,'districtSelection':True,'visualAcceptance':'REQUIRES HUMAN IMAGE INSPECTION'}))
