@@ -162,6 +162,7 @@ def survive_until(target_level, seconds=150):
     end=time.time()+seconds
     jumped=slid=False
     canal_captured=False
+    pending_captures=[]
     while time.time()<end:
         s=state(); observed={v['key']:v['value'] for v in s['values']}
         if observed['MetroDashGame.playing']!='True':break
@@ -245,8 +246,12 @@ def survive_until(target_level, seconds=150):
                 time.sleep(.05)
             assert playing() and cleared,('Failed obstacle clearance',kind)
 
-            if kind==2 and not jumped:capture_paused('04-hurdle-cleared');jumped=True
-            if kind==3 and not slid:capture_paused('05-gate-cleared');slid=True
+            if (kind==2 and not jumped) or (kind==3 and not slid):
+                label='04-hurdle-cleared' if kind==2 else '05-gate-cleared'
+                (out/(label+'-raw-clearance.json')).write_text(json.dumps(state(),indent=2))
+                pending_captures.append(label+'-safe-followup')
+            if kind==2:jumped=True
+            if kind==3:slid=True
             # Clearance already observed the real trailing edge. Do not add
             # a global post-capture cooldown that blocks the NEXT row action.
             # 44922676770 skipped jump at z8.268 and6.198 because of it.
@@ -257,6 +262,11 @@ def survive_until(target_level, seconds=150):
             for token in tokens:
                 if not any(i['group']==token['group'] and -5<i['y']<34 for i in ahead):
                     move_to(token['group']);break
+        if pending_captures:
+            fresh=state();fv={v['key']:v['value'] for v in fresh['values']}
+            current=int(float(fv['MetroDashGame.lane']))
+            if not any(i['group']==current and -5<i['y']<float(fv['MetroDashGame.Speed'])*2.5 for i in hazards(fresh)):
+                capture_paused(pending_captures.pop(0))
         # Pause/resume delivery advances several metres. Defer the canal
         # observation until the CURRENT lane is clear beyond that latency
         # budget, rather than pausing in a mandatory two-lane escape (626m
@@ -266,7 +276,7 @@ def survive_until(target_level, seconds=150):
             current=int(float(fv['MetroDashGame.lane']))
             if not any(i['group']==current and -5<i['y']<float(fv['MetroDashGame.Speed'])*2.5 for i in hazards(fresh)):
                 capture_paused('06-canal');canal_captured=True
-        if int(observed['MetroDashGame.Level'])>=target_level and jumped and slid and canal_captured:
+        if int(observed['MetroDashGame.Level'])>=target_level and jumped and slid and canal_captured and not pending_captures:
             capture_paused('06-district-'+str(target_level));return
         time.sleep(.02 if danger and danger['y']<speed*1.4 else .1)
     raise AssertionError(('Survival/obstacle/district gate incomplete',number('Score'),jumped,slid,playing()))
