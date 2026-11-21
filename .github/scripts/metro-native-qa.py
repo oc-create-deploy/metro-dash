@@ -94,6 +94,17 @@ def swipe(direction):
 def flag(key):return val('MetroDashGame.'+key)=='True'
 def hazards(s):return [i for i in s['items'] if i['kind']=='barrier' and i['y']>-5]
 
+def capture_paused(label):
+    # simctl screenshot can block for seconds. Use the real pause button so
+    # observation does not leave an unattended runner driving into the next row.
+    assert playing(), 'Cannot capture a cleared obstacle after loss'
+    press(362,54);wait_for(lambda:not playing())
+    assert not flag('gameOver'), 'Lost before capture pause'
+    frozen=number('Score')
+    capture(label+'-paused')
+    assert number('Score')==frozen, 'Capture pause advanced world'
+    press(215,539);wait_for(playing)
+
 def survive_until(target_level, seconds=150):
     """Read-only obstacle observation guides real control taps; no hidden game writes."""
     end=time.time()+seconds
@@ -133,8 +144,8 @@ def survive_until(target_level, seconds=150):
             kind=danger['id'];deadline=time.time()+1.2
             while playing() and time.time()<deadline:time.sleep(.08)
             assert playing(),('Failed obstacle clearance',kind)
-            if kind==2 and not jumped:capture('04-hurdle-cleared');jumped=True
-            if kind==3 and not slid:capture('05-gate-cleared');slid=True
+            if kind==2 and not jumped:capture_paused('04-hurdle-cleared');jumped=True
+            if kind==3 and not slid:capture_paused('05-gate-cleared');slid=True
             next_action_at=time.time()+.6
         elif danger:
             pass # Stay aligned until this observed hurdle/gate reaches the action window.
@@ -144,9 +155,9 @@ def survive_until(target_level, seconds=150):
                 if not any(i['group']==token['group'] and -5<i['y']<34 for i in ahead):
                     move_to(token['group']);break
         if int(number('Level'))==1 and not canal_captured:
-            capture('06-canal-running');canal_captured=True
+            capture_paused('06-canal');canal_captured=True
         if int(number('Level'))>=target_level and jumped and slid:
-            capture('06-district-'+str(target_level));return
+            capture_paused('06-district-'+str(target_level));return
         time.sleep(.1)
     raise AssertionError(('Survival/obstacle/district gate incomplete',number('Score'),jumped,slid,playing()))
 
