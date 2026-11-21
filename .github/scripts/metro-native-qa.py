@@ -112,20 +112,22 @@ def survive_until(target_level, seconds=150):
     canal_captured=False
     next_action_at=0
     while playing() and time.time()<end:
-        s=state(); lane=int(number('lane')); speed=number('Speed')
+        s=state(); observed={v['key']:v['value'] for v in s['values']}
+        lane=int(float(observed['MetroDashGame.lane']));speed=float(observed['MetroDashGame.Speed'])
         ahead=[i for i in hazards(s) if i['y']>-5]
         # Train length is 8m: its front reaches the runner at z=4.3, not at its centre.
         nearby=sorted([i for i in ahead if 0<i['y']<32],key=lambda i:i['y'])
         wanted=next((i for i in nearby if (i['id']==2 and not jumped) or (i['id']==3 and not slid)),None)
         # Never steer toward a later target through a nearer obstacle in its lane.
         with (out/'navigation.jsonl').open('a') as trace:
-            trace.write(json.dumps({'score':number('Score'),'lane':lane,'nearby':nearby})+'\n')
-        if wanted and wanted['y']>speed*(.7 if wanted['group']==lane else 1.7) and not any(
+            trace.write(json.dumps({'time':time.time(),'frame':s['frame'],'score':float(observed['MetroDashGame.Score']),'lane':lane,'nearby':nearby})+'\n')
+        if wanted and wanted['group']!=lane and wanted['y']>speed*1.7 and not any(
                 i['group']==wanted['group'] and i['y']<wanted['y']-1 for i in nearby):
             move_to(wanted['group'])
             # Native lane input consumed ~0.7s in 44884402240; never
             # schedule jump/slide from the pre-steering hazard snapshot.
-            s=state();lane=int(number('lane'));speed=number('Speed')
+            s=state();observed={v['key']:v['value'] for v in s['values']}
+            lane=int(float(observed['MetroDashGame.lane']));speed=float(observed['MetroDashGame.Speed'])
             ahead=hazards(s)
             nearby=sorted([i for i in ahead if 0<i['y']<32],key=lambda i:i['y'])
         danger=next((i for i in nearby if i['group']==lane),None)
@@ -172,9 +174,9 @@ def survive_until(target_level, seconds=150):
             for token in tokens:
                 if not any(i['group']==token['group'] and -5<i['y']<34 for i in ahead):
                     move_to(token['group']);break
-        if int(number('Level'))==1 and not canal_captured:
+        if int(observed['MetroDashGame.Level'])==1 and not canal_captured:
             capture_paused('06-canal');canal_captured=True
-        if int(number('Level'))>=target_level and jumped and slid:
+        if int(observed['MetroDashGame.Level'])>=target_level and jumped and slid:
             capture_paused('06-district-'+str(target_level));return
         time.sleep(.1)
     raise AssertionError(('Survival/obstacle/district gate incomplete',number('Score'),jumped,slid,playing()))
