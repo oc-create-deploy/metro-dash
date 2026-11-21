@@ -224,12 +224,17 @@ try:
     press(362,54);capture('09-night-start')
     press(215,539);wait_for(playing)
     # Switch to a real system app, then foreground Metro; never mutate its model.
+    before_background=state()
     subprocess.run(['xcrun','simctl','launch',udid,'com.apple.mobilesafari'],check=True)
-    wait_for(lambda:not playing())
-    background_score=number('Score');time.sleep(1)
-    assert number('Score')==background_score,'Background world advanced'
+    # Unity's recorder is suspended with the app: its on-disk pre-background
+    # snapshot can still say playing=True. Inspect the real system app, then
+    # require a fresh foreground frame to prove the actual pause callback.
+    subprocess.run(['xcrun','simctl','io',udid,'screenshot',str(out/'10-system-background.png')],check=True)
+    time.sleep(1)
     subprocess.run(['xcrun','simctl','launch',udid,bundle,'--playabilityQA'],check=True)
-    wait_for(lambda:not playing())
+    wait_for(lambda:state()['frame']>before_background['frame'] and not playing(),20)
+    assert not flag('gameOver'),'Background return lost the run'
+    background_score=number('Score');time.sleep(1)
     assert number('Score')==background_score,'Foreground unexpectedly resumed world'
     capture('10-background-return-paused')
     press(215,539);wait_for(playing)
