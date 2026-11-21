@@ -104,6 +104,9 @@ def survive_until(target_level, seconds=150):
         ahead=[i for i in hazards(s) if i['y']>-5]
         # Train length is 8m: its front reaches the runner at z=4.3, not at its centre.
         nearby=sorted([i for i in ahead if 0<i['y']<32],key=lambda i:i['y'])
+        wanted=next((i for i in nearby if (i['id']==2 and not jumped) or (i['id']==3 and not slid)),None)
+        if wanted and wanted['y']>speed*.7:
+            move_to(wanted['group']);lane=int(number('lane'))
         danger=next((i for i in nearby if i['group']==lane),None)
         if danger and danger['id'] in (1,4):
             safe=[l for l in range(3) if not any(i['group']==l and -5<i['y']<34 for i in ahead)]
@@ -120,6 +123,8 @@ def survive_until(target_level, seconds=150):
             if kind==2 and not jumped:capture('04-hurdle-cleared');jumped=True
             if kind==3 and not slid:capture('05-gate-cleared');slid=True
             next_action_at=time.time()+.6
+        elif danger:
+            pass # Stay aligned until this observed hurdle/gate reaches the action window.
         else:
             tokens=sorted([i for i in s['items'] if i['kind']=='roadCoin' and 5<i['y']<32],key=lambda i:i['y'])
             for token in tokens:
