@@ -77,8 +77,8 @@ def tap(text):
 def val(key):return next(v['value'] for v in state()['values'] if v['key']==key)
 
 def number(key): return float(val('MetroDashGame.'+key))
-def press(x,y):
-    s=state(); factor=min(s['safeW']/430,s['safeH']/932)
+def press(x,y,s=None):
+    s=state() if s is None else s; factor=min(s['safeW']/430,s['safeH']/932)
     left=s['safeX']+(s['safeW']-430*factor)/2
     top=s['height']-s['safeY']-s['safeH']+(s['safeH']-932*factor)/2
     action('- tapOn:\n    point: "'+f"{100*(left+x*factor)/s['width']:.4f}%, {100*(top+y*factor)/s['height']:.4f}%"+'"')
@@ -163,8 +163,9 @@ def survive_until(target_level, seconds=150):
     jumped=slid=False
     canal_captured=False
     next_action_at=0
-    while playing() and time.time()<end:
+    while time.time()<end:
         s=state(); observed={v['key']:v['value'] for v in s['values']}
+        if observed['MetroDashGame.playing']!='True':break
         lane=int(float(observed['MetroDashGame.lane']));speed=float(observed['MetroDashGame.Speed'])
         ahead=[i for i in hazards(s,True) if i['y']>-5]
         # Train length is 8m: its front reaches the runner at z=4.3, not at its centre.
@@ -218,8 +219,13 @@ def survive_until(target_level, seconds=150):
             # still require actual activation AND observed obstacle clearance.
             action_started=time.time()
             key='IsJumping' if danger['id']==2 else 'IsSliding'
-            press(160 if danger['id']==2 else 270,881)
-            wait_for(lambda:flag(key) or not playing(),2)
+            press(160 if danger['id']==2 else 270,881,s)
+            # One read per activation probe, not independent flag/playing
+            # reads whose cumulative I/O exceeded a whole slide in44920584247.
+            def action_observed():
+                nonlocal_values={v['key']:v['value'] for v in state()['values']}
+                return nonlocal_values['MetroDashGame.'+key]=='True' or nonlocal_values['MetroDashGame.playing']!='True'
+            wait_for(action_observed,2)
             with (out/'input-latency.jsonl').open('a') as trace:
                 trace.write(json.dumps({'kind':danger['id'],'beforeZ':danger['y'],'speed':speed,'seconds':time.time()-action_started,'score':number('Score'),'active':flag(key),'playing':playing()})+'\n')
             if not (playing() and flag(key)):
