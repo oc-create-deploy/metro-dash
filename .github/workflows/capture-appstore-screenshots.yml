@@ -16,7 +16,7 @@ jobs:
     runs-on: macos-26
     timeout-minutes: 45
     env:
-      MAESTRO_DRIVER_STARTUP_TIMEOUT: '180000'
+      MAESTRO_DRIVER_STARTUP_TIMEOUT: '600000'
       MAESTRO_CLI_NO_ANALYTICS: 'true'
       MAESTRO_DISABLE_UPDATE_CHECK: 'true'
       APP_SLUG: metro-dash
