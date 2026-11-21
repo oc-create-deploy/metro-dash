@@ -158,8 +158,17 @@ def survive_until(target_level, seconds=150):
             # disqualify its otherwise clear escape lane.
             horizon=max(speed*.9, danger['y']+3)
             safe=[l for l in range(3) if not any(i['group']==l and -5<i['y']<horizon for i in ahead)]
-            if safe:move_to(min(safe,key=lambda l:abs(l-lane)))
-        elif danger and danger['id'] in (2,3) and danger['y']<speed*.95 and time.time()>next_action_at:
+            # Do not cross a blocked intermediate lane to reach a clear outer
+            # lane: two native taps can take longer than the train approach.
+            safe=[l for l in safe if not any(
+                min(l,lane)<i['group']<max(l,lane) and -5<i['y']<speed*1.5+4.3
+                for i in ahead)]
+            if safe:
+                move_to(min(safe,key=lambda l:abs(l-lane)))
+                continue
+            # If a proven hurdle/gate is the only traversable route, perform
+            # the real action again rather than crossing an imminent train.
+        if danger and danger['id'] in (2,3) and danger['y']<speed*.95 and time.time()>next_action_at:
             (out/('hazard-before-'+str(seq)+'.json')).write_text(json.dumps(s,indent=2))
             # Snapshot cadence (~0.35s) plus native delivery can skip a
             # 0.75s threshold into a <0.45s approach. Lead by 0.95s;
