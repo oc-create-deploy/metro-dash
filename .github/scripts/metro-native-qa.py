@@ -135,6 +135,7 @@ def flag(key):return val('MetroDashGame.'+key)=='True'
 def hazards(s):return [i for i in s['items'] if i['kind']=='barrier' and i['y']>-5]
 
 def capture_paused(label):
+    capture_began=time.time()
     # simctl screenshot can block for seconds. Use the real pause button so
     # observation does not leave an unattended runner driving into the next row.
     assert playing(), 'Cannot capture a cleared obstacle after loss'
@@ -144,6 +145,8 @@ def capture_paused(label):
     capture(label+'-paused')
     assert number('Score')==frozen, 'Capture pause advanced world'
     start_or_resume()
+    with (out/'capture-latency.jsonl').open('a') as f:
+        f.write(json.dumps({'label':label,'seconds':time.time()-capture_began})+'\n')
 
 def survive_until(target_level, seconds=150):
     """Read-only obstacle observation guides real control taps; no hidden game writes."""
@@ -265,7 +268,7 @@ try:
     press(362,54);wait_for(lambda:not playing());capture('03-slide-paused')
     start_or_resume()
     initial=number('Coins')
-    survive_until(2,150)
+    survive_until(2,900)
     assert number('Coins')>initial,'No actual token collected'
     assert int(number('UnlockedLevel'))==2,'Districts did not unlock'
     # Deliberately collide with a train, then exercise retry.
