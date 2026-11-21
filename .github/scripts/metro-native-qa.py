@@ -199,7 +199,9 @@ def survive_until(target_level, seconds=150):
         # Jump airtime is shorter than slide duration. At z10.93/s12.01
         # the 44895474024 jump landed before the trailing collision edge
         # (height1.0316 at z-.502), despite successful native activation.
-        action_lead=.82 if danger and danger['id']==2 else .95
+        # .82s still landed early with faster delivery in 44912408687
+        # (height1.0284 at z-.585, request.394s); use .70s, not slide lead.
+        action_lead=.70 if danger and danger['id']==2 else .95
         if danger and danger['id'] in (2,3) and danger['y']<speed*action_lead and time.time()>next_action_at:
             (out/('hazard-before-'+str(seq)+'.json')).write_text(json.dumps(s,indent=2))
             # Snapshot cadence (~0.35s) plus native delivery can skip a
