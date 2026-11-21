@@ -48,3 +48,14 @@ Physical-device verification remains unavailable, not claimed.
   Raw clearance observations are separate from deferred followup screenshots.
 - Functional and visual simulator acceptance complete. Physical device not tested.
 - Replacement release/distribution still pending; build 4 unused at fresh ASC check.
+
+## Replacement TestFlight delivery — 2026-11-21 18:49 UTC
+
+Main 2da28ff; device export44935505879; signing/upload44936580335 succeeded.
+ASC app6812287453 / Com.play.subsurf replacement build4
+267e86e6-f469-4dd2-98ad-f9c95445ed2d is VALID and IN_BETA_TESTING.
+Separately re-read Internal Testing group5da9902a-c591-428f-b83a-77e298b7dae4:
+contains build4 and intended app-specific testerab5055ff-1094-4d5d-bac3-eef947466890.
+Tester membership/state exists; installation of this replacement was not observed.
+Simulator product acceptance and intended internal distribution complete; no claim
+of external beta/App Store approval or physical-device testing.
