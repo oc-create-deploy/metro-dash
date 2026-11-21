@@ -159,9 +159,13 @@ def survive_until(target_level, seconds=150):
             horizon=max(speed*.9, danger['y']+3)
             safe=[l for l in range(3) if not any(i['group']==l and -5<i['y']<horizon for i in ahead)]
             # Do not cross a blocked intermediate lane to reach a clear outer
-            # lane: two native taps can take longer than the train approach.
+            # lane. Reserve one native-tap interval plus collision extent for
+            # crossing the intermediate lane, not both taps plus a train
+            # extent for every hazard. The old 1.5s blanket rejected an
+            # early clear path at z28, then trapped lane2 behind a train
+            # during the canal capture in 44896401431.
             safe=[l for l in safe if not any(
-                min(l,lane)<i['group']<max(l,lane) and -5<i['y']<speed*1.5+4.3
+                min(l,lane)<i['group']<max(l,lane) and -5<i['y']<speed*.85+(4.3 if i['id']==1 else 1.0)
                 for i in ahead)]
             if safe:
                 move_to(min(safe,key=lambda l:abs(l-lane)))
