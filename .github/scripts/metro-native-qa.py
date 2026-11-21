@@ -162,7 +162,6 @@ def survive_until(target_level, seconds=150):
     end=time.time()+seconds
     jumped=slid=False
     canal_captured=False
-    next_action_at=0
     while time.time()<end:
         s=state(); observed={v['key']:v['value'] for v in s['values']}
         if observed['MetroDashGame.playing']!='True':break
@@ -212,7 +211,7 @@ def survive_until(target_level, seconds=150):
         # .82s still landed early with faster delivery in 44912408687
         # (height1.0284 at z-.585, request.394s); use .70s, not slide lead.
         action_lead=.70 if danger and danger['id']==2 else .95
-        if danger and danger['id'] in (2,3) and danger['y']<speed*action_lead and time.time()>next_action_at:
+        if danger and danger['id'] in (2,3) and danger['y']<speed*action_lead:
             (out/('hazard-before-'+str(seq)+'.json')).write_text(json.dumps(s,indent=2))
             # Snapshot cadence (~0.35s) plus native delivery can skip a
             # 0.75s threshold into a <0.45s approach. Use kind-specific lead;
@@ -248,7 +247,9 @@ def survive_until(target_level, seconds=150):
 
             if kind==2 and not jumped:capture_paused('04-hurdle-cleared');jumped=True
             if kind==3 and not slid:capture_paused('05-gate-cleared');slid=True
-            next_action_at=time.time()+.6
+            # Clearance already observed the real trailing edge. Do not add
+            # a global post-capture cooldown that blocks the NEXT row action.
+            # 44922676770 skipped jump at z8.268 and6.198 because of it.
         elif danger:
             pass # Stay aligned until this observed hurdle/gate reaches the action window.
         else:
