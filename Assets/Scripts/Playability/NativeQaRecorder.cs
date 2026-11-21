@@ -126,7 +126,14 @@ public sealed class NativeQaRecorder : MonoBehaviour
                 Type yg=assembly.GetType("YG.YG2");if(yg==null) continue;
                 FieldInfo f=yg.GetField("saves",BindingFlags.Static|BindingFlags.Public);if(f!=null && f.GetValue(null)!=null) state.values.Add(new Value{key="YG2.saves",value=JsonUtility.ToJson(f.GetValue(null))});break;
             }
-            string path=Path.Combine(Application.persistentDataPath,"qa-state.json");Directory.CreateDirectory(Application.persistentDataPath);File.WriteAllText(path,JsonUtility.ToJson(state,true));
+            string path=Path.Combine(Application.persistentDataPath,"qa-state.json");
+            Directory.CreateDirectory(Application.persistentDataPath);
+            // Publish complete observations atomically. A host reading the live
+            // file must never wait through a partially written JSON document.
+            string temporary=path+".tmp";
+            File.WriteAllText(temporary,JsonUtility.ToJson(state,true));
+            if(File.Exists(path)) File.Replace(temporary,path,null);
+            else File.Move(temporary,path);
         }
         catch(Exception e) { File.WriteAllText(Path.Combine(Application.persistentDataPath,"qa-recorder-error.txt"),e.ToString()); }
     }
