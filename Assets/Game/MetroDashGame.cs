@@ -16,6 +16,7 @@ public sealed class MetroDashGame : MonoBehaviour
     private readonly List<RoadObject> objects = new List<RoadObject>();
     private readonly List<Transform> tiles = new List<Transform>();
     private readonly Dictionary<string, Material> materials = new Dictionary<string, Material>();
+    private int routeBeat;
     private int lane = 1, coins, best, selectedLevel, unlockedLevel, currentLevel, runCoins;
     private float distance, elapsed, spawnTimer, runnerX, height, verticalSpeed, slideTimer, speed, bannerTimer;
     private bool playing, started, gameOver, inputHeld;
@@ -51,7 +52,7 @@ public sealed class MetroDashGame : MonoBehaviour
         if (materials.TryGetValue(name, out var cached)) return cached;
         var material = new Material(Resources.Load<Material>("RunnerBase"));
         material.color = color;
-        material.SetFloat("_Glossiness", .2f);
+        material.SetFloat("_Glossiness", name == "rail" || name.StartsWith("train ") ? .65f : .2f);
         if (glow) { material.EnableKeyword("_EMISSION"); material.SetColor("_EmissionColor", color * .6f); }
         materials.Add(name, material); return material;
     }
@@ -73,7 +74,7 @@ public sealed class MetroDashGame : MonoBehaviour
         RenderSettings.fogStartDistance = 65; RenderSettings.fogEndDistance = 155;
         var cameraObject = new GameObject("Runner chase camera"); cameraObject.tag = "MainCamera";
         gameCamera = cameraObject.AddComponent<Camera>(); gameCamera.clearFlags = CameraClearFlags.SolidColor;
-        gameCamera.backgroundColor = new Color(.77f, .83f, .9f); gameCamera.fieldOfView = 62;
+        gameCamera.backgroundColor = new Color(.27f, .68f, .93f); gameCamera.fieldOfView = 62;
         gameCamera.nearClipPlane = .1f; gameCamera.farClipPlane = 180;
         gameCamera.transform.position = new Vector3(0, 4.8f, -8.5f);
         gameCamera.transform.LookAt(new Vector3(0, 1.3f, 13));
@@ -128,38 +129,85 @@ public sealed class MetroDashGame : MonoBehaviour
             }
         }
         BuildRunner();
+        BuildLogoLandmarks();
     }
     private Transform Limb(string name, Vector3 pivot, Vector3 size, Material mat)
     {
         var root = new GameObject(name).transform; root.SetParent(runner, false); root.localPosition = pivot;
-        Box(name + " mesh", root, new Vector3(0, -size.y / 2, 0), size, mat); return root;
+        Shape(name + " mesh", PrimitiveType.Capsule, root, new Vector3(0, -size.y / 2, 0), size, mat); return root;
     }
     private void BuildRunner()
     {
         runner = new GameObject("Ari - metro courier").transform;
-        var jacket = Mat("courier teal", new Color(.06f, .73f, .72f));
-        var trousers = Mat("ink trousers", new Color(.1f, .16f, .29f));
+        var jacket = Mat("midnight hoodie", new Color(.045f, .065f, .11f));
+        var trousers = Mat("denim", new Color(.075f, .12f, .2f));
         var skin = Mat("skin", new Color(.72f, .43f, .27f));
-        var orange = Mat("saffron", new Color(1, .5f, .1f));
-        torso = Box("Courier jacket", runner, new Vector3(0, 1.05f, 0), new Vector3(.61f, .65f, .38f), jacket).transform;
-        head = Shape("Head", PrimitiveType.Sphere, runner, new Vector3(0, 1.65f, 0), new Vector3(.44f, .47f, .44f), skin).transform;
-        Shape("Helmet", PrimitiveType.Sphere, head, new Vector3(0, .3f, -.02f), new Vector3(1.08f, .75f, 1.08f), orange);
-        Box("Helmet stripe", head, new Vector3(0, .58f, -.05f), new Vector3(.18f, .08f, .95f), jacket);
-        Box("Courier pack", torso, new Vector3(0, 0, -.66f), new Vector3(.7f, .75f, .55f), orange);
-        Box("Reflector", torso, new Vector3(0, 0, -.96f), new Vector3(.52f, .13f, .04f), Mat("reflector", Color.white));
-        leftArm = Limb("Left arm", new Vector3(-.39f, 1.3f, 0), new Vector3(.19f, .56f, .23f), jacket);
-        rightArm = Limb("Right arm", new Vector3(.39f, 1.3f, 0), new Vector3(.19f, .56f, .23f), jacket);
-        leftLeg = Limb("Left leg", new Vector3(-.17f, .75f, 0), new Vector3(.22f, .69f, .25f), trousers);
-        rightLeg = Limb("Right leg", new Vector3(.17f, .75f, 0), new Vector3(.22f, .69f, .25f), trousers);
-        var shoe = Mat("shoe", new Color(.94f, .94f, .86f));
-        Box("Left trainer", leftLeg, new Vector3(0, -.63f, .08f), new Vector3(.26f, .16f, .46f), shoe);
-        Box("Right trainer", rightLeg, new Vector3(0, -.63f, .08f), new Vector3(.26f, .16f, .46f), shoe);
+        var trim = Mat("cyan trainer trim", new Color(.12f, .85f, 1), true);
+        torso = Shape("Rounded hoodie", PrimitiveType.Capsule, runner, new Vector3(0, 1.1f, 0), new Vector3(.7f, .52f, .48f), jacket).transform;
+        head = Shape("Raised hood", PrimitiveType.Sphere, runner, new Vector3(0, 1.65f, -.04f), new Vector3(.57f, .64f, .56f), jacket).transform;
+        Shape("Hood face opening", PrimitiveType.Sphere, runner, new Vector3(0, 1.64f, .24f), new Vector3(.33f, .39f, .07f), skin);
+        Box("Hood rear seam", runner, new Vector3(0, 1.67f, -.32f), new Vector3(.018f, .4f, .015f), trousers);
+        Box("Hoodie hem", runner, new Vector3(0, .84f, -.02f), new Vector3(.65f, .09f, .46f), trousers);
+        leftArm = Limb("Left sleeve", new Vector3(-.39f, 1.3f, 0), new Vector3(.24f, .32f, .25f), jacket);
+        rightArm = Limb("Right sleeve", new Vector3(.39f, 1.3f, 0), new Vector3(.24f, .32f, .25f), jacket);
+        leftLeg = Limb("Left denim leg", new Vector3(-.17f, .75f, 0), new Vector3(.24f, .37f, .27f), trousers);
+        rightLeg = Limb("Right denim leg", new Vector3(.17f, .75f, 0), new Vector3(.24f, .37f, .27f), trousers);
+        foreach (var arm in new[] { leftArm, rightArm })
+            Shape("Hand", PrimitiveType.Sphere, arm, new Vector3(0, -.58f, 0), new Vector3(.2f, .22f, .22f), skin);
+        foreach (var leg in new[] { leftLeg, rightLeg })
+        {
+            Shape("Trainer", PrimitiveType.Capsule, leg, new Vector3(0, -.63f, .08f), new Vector3(.29f, .12f, .48f), jacket);
+            Box("Cyan sole", leg, new Vector3(0, -.72f, .08f), new Vector3(.3f, .065f, .48f), trim);
+            for (int t = 0; t < 3; t++) Box("Sole tread", leg, new Vector3(0, -.73f, -.1f + t * .14f), new Vector3(.31f, .035f, .025f), trousers);
+        }
+    }
+    private void BuildLogoLandmarks()
+    {
+        var cream = Mat("viaduct stone", new Color(.83f, .72f, .62f));
+        var leaf = Mat("palm leaves", new Color(.16f, .4f, .18f));
+        var trunk = Mat("palm trunk", new Color(.36f, .24f, .16f));
+        var amber = Mat("sunset amber", new Color(1, .63f, .18f), true);
+        // All set dressing remains outside the playable three-lane envelope.
+        for (int i = 0; i < tiles.Count; i++)
+        {
+            var tile = tiles[i];
+            for (int side = -1; side <= 1; side += 2)
+            {
+                float x = side * 6.4f;
+                Shape("Palm trunk", PrimitiveType.Cylinder, tile, new Vector3(x, 3.1f, 4), new Vector3(.28f, 3.1f, .28f), trunk);
+                for (int frond = 0; frond < 6; frond++)
+                {
+                    float angle = frond * Mathf.PI / 3;
+                    var palm = Shape("Palm crown", PrimitiveType.Capsule, tile, new Vector3(x + Mathf.Cos(angle) * .85f, 6.15f, 4 + Mathf.Sin(angle) * .85f), new Vector3(.3f, 1.2f, .22f), leaf);
+                    palm.transform.localRotation = Quaternion.Euler(65, -frond * 60, 0);
+                }
+                if (i % 2 == 0)
+                {
+                    float h = 19 + i % 4 * 5;
+                    Box("Distant skyline tower", tile, new Vector3(side * 18, h / 2, 3), new Vector3(3, h, 4), Mat("skyline blue", new Color(.24f, .38f, .64f)));
+                    Box("Tower spire", tile, new Vector3(side * 18, h + 1.5f, 3), new Vector3(.18f, 3, .18f), cream);
+                }
+            }
+            if (i % 4 != 0) continue;
+            // Open central arch: never a solid obstacle over the runner.
+            for (int side = -1; side <= 1; side += 2)
+                Box("Viaduct pier", tile, new Vector3(side * 6, 3.8f, 0), new Vector3(.65f, 7.6f, 1.8f), cream);
+            for (int a = 0; a < 12; a++)
+            {
+                float angle = (a + .5f) / 12 * Mathf.PI;
+                var stone = Box("Viaduct arch stone", tile, new Vector3(Mathf.Cos(angle) * 6, 6.8f + Mathf.Sin(angle) * 2.1f, 0), new Vector3(1.65f, .45f, 1.8f), cream);
+                stone.transform.localRotation = Quaternion.Euler(0, 0, Mathf.Atan2(2.1f * Mathf.Cos(angle), -6 * Mathf.Sin(angle)) * Mathf.Rad2Deg);
+            }
+            Box("Viaduct deck", tile, new Vector3(0, 9.25f, 0), new Vector3(14, .5f, 2), cream);
+            Box("Viaduct golden rim", tile, new Vector3(0, 9.55f, -.95f), new Vector3(14, .1f, .1f), amber);
+        }
     }
     public void StartRun()
     {
         foreach (var o in objects) Destroy(o.view); objects.Clear();
         lane = 1; runnerX = height = verticalSpeed = slideTimer = elapsed = 0;
         distance = selectedLevel * DistrictLength; currentLevel = selectedLevel; spawnTimer = 1.4f;
+        routeBeat = 0;
         runCoins = 0; bannerTimer = 3; gameOver = false; started = playing = true;
         for (int i = 0; i < tiles.Count; i++) tiles[i].position = new Vector3(0, 0, -14 + i * 14);
     }
@@ -247,7 +295,7 @@ public sealed class MetroDashGame : MonoBehaviour
     }
     private void UpdateDistrict()
     {
-        Color sky = currentLevel == 0 ? new Color(.77f, .83f, .9f) : currentLevel == 1 ? new Color(.5f, .76f, .83f) : new Color(.1f, .15f, .3f);
+        Color sky = currentLevel == 0 ? new Color(.27f, .68f, .93f) : currentLevel == 1 ? new Color(.5f, .76f, .83f) : new Color(.1f, .15f, .3f);
         gameCamera.backgroundColor = Color.Lerp(gameCamera.backgroundColor, sky, Time.deltaTime);
         RenderSettings.fogColor = Color.Lerp(RenderSettings.fogColor, sky, Time.deltaTime);
         RenderSettings.ambientLight = Color.Lerp(RenderSettings.ambientLight, currentLevel == 2 ? new Color(.34f, .4f, .6f) : new Color(.62f, .69f, .8f), Time.deltaTime);
@@ -255,18 +303,24 @@ public sealed class MetroDashGame : MonoBehaviour
     }
     private void SpawnRow()
     {
-        int safe = Random.Range(0, 3); // Every row retains a clear ground-level escape lane.
-        int difficulty = currentLevel;
+        // Eight authored beats: teach -> alternate -> breathe -> combine.
+        // Adjacent safe-lane transitions avoid forced two-lane crossings.
+        int[] path = { 1, 0, 0, 1, 2, 2, 1, 1 };
+        int beat = routeBeat++ % path.Length;
+        int safe = path[beat];
+        bool recovery = beat == 2 || beat == 7;
         for (int l = 0; l < 3; l++)
         {
             if (l == safe)
             {
-                for (int c = 0; c < 6; c++) Spawn(l, 0, 60 + c * 2.2f);
+                for (int c = 0; c < 7; c++) Spawn(l, 0, 59 + c * 2.2f);
                 continue;
             }
-            int kind = Random.Range(1, difficulty > 0 ? 5 : 4);
+            if (recovery) continue;
+            // District 1 teaches train/jump/slide separately, later districts
+            // mix the same readable language and introduce live-track jumps.
+            int kind = 1 + (beat + l + currentLevel) % (currentLevel == 0 ? 3 : 4);
             Spawn(l, kind, 70);
-            if (kind == 2) for (int c = 0; c < 3; c++) Spawn(l, 0, 75 + c * 2.2f);
         }
     }
     private void Spawn(int l, int kind, float z)
@@ -286,21 +340,34 @@ public sealed class MetroDashGame : MonoBehaviour
         else if (kind == 1)
         {
             length = 8;
-            var train = Mat("train teal", new Color(.1f, .61f, .67f));
+            var train = l == 0 ? Mat("train cyan", new Color(.03f, .65f, .94f)) : Mat("train orange", new Color(1, .37f, .045f));
+            Shape("Rounded carriage nose", PrimitiveType.Capsule, root.transform, new Vector3(0, 1.55f, -3.5f), new Vector3(2.1f, 1.3f, .85f), train);
             Box("Carriage", root.transform, new Vector3(0, 1.55f, 0), new Vector3(2.12f, 2.7f, 8), train);
             Box("Roof", root.transform, new Vector3(0, 2.95f, 0), new Vector3(2.2f, .2f, 8), Mat("train roof", new Color(.81f, .85f, .84f)));
             Box("Windscreen", root.transform, new Vector3(0, 2.05f, -4.02f), new Vector3(1.7f, .85f, .04f), dark);
             Box("Safety bumper", root.transform, new Vector3(0, .6f, -4.1f), new Vector3(2.15f, .25f, .2f), warning);
             for (int side = -1; side <= 1; side += 2)
             {
+                Box("Carriage gold belt", root.transform, new Vector3(side * 1.075f, .86f, 0), new Vector3(.04f, .09f, 7.8f), yellow);
+                for (int door = -1; door <= 1; door += 2)
+                {
+                    Box("Door frame", root.transform, new Vector3(side * 1.09f, 1.55f, door * 1.8f), new Vector3(.04f, 2.2f, .85f), dark);
+                    Box("Door inset", root.transform, new Vector3(side * 1.12f, 1.45f, door * 1.8f), new Vector3(.025f, 1.85f, .65f), train);
+                }
                 Box("Headlight", root.transform, new Vector3(side * .76f, 1.1f, -4.06f), new Vector3(.28f, .18f, .05f), yellow);
-                for (int w = 0; w < 4; w++) Box("Passenger window", root.transform, new Vector3(side * 1.075f, 2, -2.8f + w * 1.85f), new Vector3(.04f, .9f, 1.1f), dark);
+                for (int w = 0; w < 4; w++) Box("Passenger window", root.transform, new Vector3(side * 1.075f, 2, -2.8f + w * 1.85f), new Vector3(.04f, .9f, 1.1f), Mat("warm passenger glass", new Color(1, .69f, .25f), true));
             }
         }
         else if (kind == 2)
         {
             Box("Hurdle", root.transform, new Vector3(0, .55f, 0), new Vector3(2, 1.1f, .65f), warning);
-            for (int s = -1; s <= 1; s++) Box("Reflective stripes", root.transform, new Vector3(s * .62f, .65f, -.34f), new Vector3(.23f, .7f, .03f), yellow);
+            for (int stripe = -1; stripe <= 1; stripe++)
+            {
+                var bar = Box("White diagonal barricade stripe", root.transform, new Vector3(stripe * .6f, .55f, -.34f), new Vector3(.26f, .9f, .03f), Mat("barrier white", Color.white));
+                bar.transform.localRotation = Quaternion.Euler(0, 0, -30);
+            }
+            for (int side = -1; side <= 1; side += 2)
+                Shape("Barricade warning lamp", PrimitiveType.Sphere, root.transform, new Vector3(side * .74f, .95f, -.38f), new Vector3(.2f, .2f, .1f), yellow);
         }
         else if (kind == 3)
         {
